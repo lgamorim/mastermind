@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 
 namespace Mastermind.Core
 {
@@ -8,8 +9,25 @@ namespace Mastermind.Core
 
         public void CodeMaker(Shield shield)
         {
-            if(shield is null) throw new ArgumentNullException();
+            if (shield is null) throw new ArgumentNullException();
             Shield = shield;
+        }
+
+        public Response CodeBreaker(CodePeg[] code)
+        {
+            if (code is null) throw new ArgumentNullException();
+            if (code.Length != Shield.Count) throw new ArgumentException();
+
+            var keyPegs = new KeyPeg?[code.Length];
+            for (var i = 0; i < code.Length; i++)
+                if (Shield.HasColorAt(i, code[i]))
+                    keyPegs[i] = KeyPeg.Black;
+
+            var blackKeyPegs = keyPegs.Count(k => k == KeyPeg.Black);
+            var whiteKeyPegs = keyPegs.Count(k => k == KeyPeg.White);
+            var response = new Response(blackKeyPegs, whiteKeyPegs);
+
+            return response;
         }
     }
 }

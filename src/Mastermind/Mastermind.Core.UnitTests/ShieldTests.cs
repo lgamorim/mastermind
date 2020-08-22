@@ -51,7 +51,7 @@ namespace Mastermind.Core.UnitTests
         }
 
         [Fact]
-        public void ShouldMatchHolesIndexesWhenShieldHasColors()
+        public void ShouldMatchIndexColorWhenShieldHasColors()
         {
             //Arrange
             var colors = new[]
@@ -95,6 +95,55 @@ namespace Mastermind.Core.UnitTests
 
             //Assert
             action.Should().Throw<ArgumentNullException>();
+        }
+
+        [Theory]
+        [InlineData(0, CodePeg.Black)]
+        [InlineData(1, CodePeg.Blue)]
+        [InlineData(2, CodePeg.Green)]
+        [InlineData(3, CodePeg.White)]
+        public void ShouldHaveColorAtIndexWhenCodePegMatchesShieldColor(int index, CodePeg color)
+        {
+            //Arrange
+            var colors = new[]
+            {
+                CodePeg.Black,
+                CodePeg.Blue,
+                CodePeg.Green,
+                CodePeg.White
+            };
+            var shield = new Shield(colors);
+            
+            //Act
+            var result = shield.HasColorAt(index, color);
+
+            //Assert
+            result.Should().Be(true);
+        }
+
+        [Theory]
+        [InlineData(0, CodePeg.Blue)]
+        [InlineData(0, CodePeg.Green)]
+        [InlineData(0, CodePeg.Red)]
+        [InlineData(0, CodePeg.White)]
+        [InlineData(0, CodePeg.Yellow)]
+        public void ShouldNotHaveColorAtIndexWhenComparedToAllOtherCodePegs(int index, CodePeg color)
+        {
+            //Arrange
+            var colors = new[]
+            {
+                CodePeg.Black,
+                CodePeg.Blue,
+                CodePeg.Green,
+                CodePeg.White
+            };
+            var shield = new Shield(colors);
+            
+            //Act
+            var result = shield.HasColorAt(index, color);
+
+            //Assert
+            result.Should().Be(false);
         }
     }
 }

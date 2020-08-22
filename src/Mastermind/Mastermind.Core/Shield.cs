@@ -16,5 +16,10 @@ namespace Mastermind.Core
         public CodePeg this[int index] => colors[index];
 
         public int Count => colors.Length;
+
+        public bool HasColorAt(int index, CodePeg color)
+        {
+            return this[index] == color;
+        }
     }
 }
