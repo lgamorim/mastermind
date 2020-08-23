@@ -57,6 +57,25 @@ namespace Mastermind.Core.UnitTests
             result.WhiteKeyPegs.Should().Be(0);
         }
 
+        [Fact]
+        public void ShouldFindAllWhiteKeyPegsWhenAllCodeColorsMatchOtherShieldPosition()
+        {
+            //Arrange
+            var colors = new[] {CodePeg.Black, CodePeg.Blue, CodePeg.Green, CodePeg.White};
+            var shield = new Shield(colors);
+            var decodingBoard = new DecodingBoard();
+            decodingBoard.CodeMaker(shield);
+            
+            //Act
+            var code = new[] {CodePeg.White, CodePeg.Green, CodePeg.Blue, CodePeg.Black};
+            var result = decodingBoard.CodeBreaker(code);
+
+            //Assert
+            result.Should().NotBeNull();
+            result.BlackKeyPegs.Should().Be(0);
+            result.WhiteKeyPegs.Should().Be(colors.Length);
+        }
+
         [Theory]
         [InlineData(new[]{CodePeg.Black, CodePeg.Black, CodePeg.Black, CodePeg.Black})]
         [InlineData(new[]{CodePeg.Red, CodePeg.Blue, CodePeg.Yellow, CodePeg.Red})]
@@ -79,6 +98,27 @@ namespace Mastermind.Core.UnitTests
         }
 
         [Theory]
+        [InlineData(new[]{CodePeg.Red, CodePeg.Black, CodePeg.Green, CodePeg.White})]
+        [InlineData(new[]{CodePeg.Blue, CodePeg.Red, CodePeg.Yellow, CodePeg.Red})]
+        [InlineData(new[]{CodePeg.Red, CodePeg.Yellow, CodePeg.Red, CodePeg.Green})]
+        [InlineData(new[]{CodePeg.Black, CodePeg.Blue, CodePeg.White, CodePeg.Red})]
+        public void ShouldFindOneWhiteKeyPegWhenCodeColorMatchesSingleOtherShieldPosition(CodePeg[] code)
+        {
+            //Arrange
+            var colors = new[] {CodePeg.Black, CodePeg.Blue, CodePeg.Green, CodePeg.White};
+            var shield = new Shield(colors);
+            var decodingBoard = new DecodingBoard();
+            decodingBoard.CodeMaker(shield);
+            
+            //Act
+            var result = decodingBoard.CodeBreaker(code);
+            
+            //Assert
+            result.Should().NotBeNull();
+            result.WhiteKeyPegs.Should().Be(1);
+        }
+
+        [Theory]
         [InlineData(new[]{CodePeg.Black, CodePeg.Black, CodePeg.Blue, CodePeg.Blue})]
         [InlineData(new[]{CodePeg.Black, CodePeg.Green, CodePeg.White, CodePeg.Black})]
         [InlineData(new[]{CodePeg.Green, CodePeg.Blue, CodePeg.Blue, CodePeg.White})]
@@ -97,6 +137,48 @@ namespace Mastermind.Core.UnitTests
             //Assert
             result.Should().NotBeNull();
             result.BlackKeyPegs.Should().Be(2);
+        }
+
+        [Theory]
+        [InlineData(new[]{CodePeg.Black, CodePeg.Black, CodePeg.Blue, CodePeg.Blue})]
+        [InlineData(new[]{CodePeg.Blue, CodePeg.Green, CodePeg.White, CodePeg.Blue})]
+        [InlineData(new[]{CodePeg.Green, CodePeg.Black, CodePeg.Black, CodePeg.White})]
+        [InlineData(new[]{CodePeg.Blue, CodePeg.Blue, CodePeg.Black, CodePeg.Black})]
+        public void ShouldFindTwoWhiteKeyPegsWhenCodeColorMatchesTwoOtherShieldPositions(CodePeg[] code)
+        {
+            //Arrange
+            var colors = new[] {CodePeg.Black, CodePeg.Blue, CodePeg.Blue, CodePeg.Black};
+            var shield = new Shield(colors);
+            var decodingBoard = new DecodingBoard();
+            decodingBoard.CodeMaker(shield);
+            
+            //Act
+            var result = decodingBoard.CodeBreaker(code);
+            
+            //Assert
+            result.Should().NotBeNull();
+            result.WhiteKeyPegs.Should().Be(2);
+        }
+
+        [Theory]
+        [InlineData(new[]{CodePeg.Black, CodePeg.White, CodePeg.Blue, CodePeg.Green})]
+        [InlineData(new[]{CodePeg.Red, CodePeg.Black, CodePeg.White, CodePeg.Green})]
+        [InlineData(new[]{CodePeg.Blue, CodePeg.Black, CodePeg.White, CodePeg.Red})]
+        [InlineData(new[]{CodePeg.Green, CodePeg.Black, CodePeg.Blue, CodePeg.White})]
+        public void ShouldFindThreeWhiteKeyPegsWhenCodeColorMatchesThreeOtherShieldPositions(CodePeg[] code)
+        {
+            //Arrange
+            var colors = new[] {CodePeg.Black, CodePeg.Blue, CodePeg.Green, CodePeg.White};
+            var shield = new Shield(colors);
+            var decodingBoard = new DecodingBoard();
+            decodingBoard.CodeMaker(shield);
+            
+            //Act
+            var result = decodingBoard.CodeBreaker(code);
+            
+            //Assert
+            result.Should().NotBeNull();
+            result.WhiteKeyPegs.Should().Be(3);
         }
 
         [Fact]

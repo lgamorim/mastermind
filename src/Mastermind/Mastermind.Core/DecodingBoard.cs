@@ -22,6 +22,13 @@ namespace Mastermind.Core
             for (var i = 0; i < code.Length; i++)
                 if (Shield.HasColorAt(i, code[i]))
                     keyPegs[i] = KeyPeg.Black;
+                else
+                    for (var j = 0; j < code.Length; j++)
+                        if (keyPegs[j] != KeyPeg.Black && Shield.HasColorAt(j, code[i]))
+                        {
+                            keyPegs[i] = KeyPeg.White;
+                            break;
+                        }
 
             var blackKeyPegs = keyPegs.Count(k => k == KeyPeg.Black);
             var whiteKeyPegs = keyPegs.Count(k => k == KeyPeg.White);
