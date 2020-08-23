@@ -199,6 +199,23 @@ namespace Mastermind.Core.UnitTests
         }
 
         [Fact]
+        public void ShouldThrowArgumentExceptionWhenCodeBreakerCodeIsGreaterThanShield()
+        {
+            //Arrange
+            var colors = new[] {CodePeg.Black, CodePeg.Blue, CodePeg.Green, CodePeg.White};
+            var shield = new Shield(colors);
+            var decodingBoard = new DecodingBoard();
+            decodingBoard.CodeMaker(shield);
+
+            //Act
+            void Action() => decodingBoard.CodeBreaker(new CodePeg[colors.Length + 1]);
+            var exception = Record.Exception(Action);
+
+            //Assert
+            exception.Should().BeOfType<ArgumentException>();
+        }
+
+        [Fact]
         public void ShouldThrowArgumentNullExceptionWhenCodeBreakerCodeIsNull()
         {
             //Arrange
