@@ -19,22 +19,32 @@ namespace Mastermind.Core
             if (code.Length != Shield.Count) throw new ArgumentException();
 
             var keyPegs = new KeyPeg?[code.Length];
-            for (var i = 0; i < code.Length; i++)
-                if (Shield.HasColorAt(i, code[i]))
-                    keyPegs[i] = KeyPeg.Black;
-                else
-                    for (var j = 0; j < code.Length; j++)
-                        if (keyPegs[j] != KeyPeg.Black && Shield.HasColorAt(j, code[i]))
-                        {
-                            keyPegs[i] = KeyPeg.White;
-                            break;
-                        }
+            FindBlackKeyPegs(code, keyPegs);
+            FindWhiteKeyPegs(code, keyPegs);
 
             var blackKeyPegs = keyPegs.Count(k => k == KeyPeg.Black);
             var whiteKeyPegs = keyPegs.Count(k => k == KeyPeg.White);
             var response = new Response(blackKeyPegs, whiteKeyPegs);
 
             return response;
+        }
+
+        private void FindBlackKeyPegs(CodePeg[] code, KeyPeg?[] keyPegs)
+        {
+            for (var i = 0; i < code.Length; i++)
+                if (Shield.HasColorAt(i, code[i]))
+                    keyPegs[i] = KeyPeg.Black;
+        }
+
+        private void FindWhiteKeyPegs(CodePeg[] code, KeyPeg?[] keyPegs)
+        {
+            foreach (var color in code)
+                for (var i = 0; i < code.Length; i++)
+                    if (keyPegs[i] is null && Shield.HasColorAt(i, color))
+                    {
+                        keyPegs[i] = KeyPeg.White;
+                        break;
+                    }
         }
     }
 }

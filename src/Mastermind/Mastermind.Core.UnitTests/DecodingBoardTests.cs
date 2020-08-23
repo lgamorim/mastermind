@@ -161,6 +161,25 @@ namespace Mastermind.Core.UnitTests
         }
 
         [Theory]
+        [InlineData(new[]{CodePeg.Black, CodePeg.Red, CodePeg.Blue, CodePeg.Blue})]
+        [InlineData(new[]{CodePeg.Red, CodePeg.Blue, CodePeg.Black, CodePeg.Black})]
+        public void ShouldNotFindTwoWhiteKeyPegsWhenCodeColorMatchesSingleOtherShieldPosition(CodePeg[] code)
+        {
+            //Arrange
+            var colors = new[] {CodePeg.Black, CodePeg.Blue, CodePeg.Green, CodePeg.White};
+            var shield = new Shield(colors);
+            var decodingBoard = new DecodingBoard();
+            decodingBoard.CodeMaker(shield);
+            
+            //Act
+            var result = decodingBoard.CodeBreaker(code);
+            
+            //Assert
+            result.Should().NotBeNull();
+            result.WhiteKeyPegs.Should().NotBe(2);
+        }
+
+        [Theory]
         [InlineData(new[]{CodePeg.Black, CodePeg.White, CodePeg.Blue, CodePeg.Green})]
         [InlineData(new[]{CodePeg.Red, CodePeg.Black, CodePeg.White, CodePeg.Green})]
         [InlineData(new[]{CodePeg.Blue, CodePeg.Black, CodePeg.White, CodePeg.Red})]
