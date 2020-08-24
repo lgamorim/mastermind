@@ -250,5 +250,67 @@ namespace Mastermind.Core.UnitTests
             //Assert
             exception.Should().BeOfType<ArgumentNullException>();
         }
+
+        [Fact]
+        public void ShouldSolveSecretCodeWhenBlackPegsEqualsShieldCount()
+        {
+            //Arrange
+            var colors = new[] {CodePeg.Black, CodePeg.Blue, CodePeg.Green, CodePeg.White};
+            var shield = new Shield(colors);
+            var decodingBoard = new DecodingBoard();
+            decodingBoard.CodeMaker(shield);
+            
+            //Act
+            var response = new Response(4, 0);
+            var result = decodingBoard.HasSolvedSecretCode(response);
+
+            //Assert
+            result.Should().BeTrue();
+        }
+
+        [Theory]
+        [InlineData(0, 0)]
+        [InlineData(1, 2)]
+        [InlineData(2, 1)]
+        [InlineData(3, 0)]
+        public void ShouldNotSolveSecretCodeWhenBlackPegsNotEqualsShieldCount(int blackKeyPegs, int whiteKeyPegs)
+        {
+            //Arrange
+            var colors = new[] {CodePeg.Black, CodePeg.Blue, CodePeg.Green, CodePeg.White};
+            var shield = new Shield(colors);
+            var decodingBoard = new DecodingBoard();
+            decodingBoard.CodeMaker(shield);
+            
+            //Act
+            var response = new Response(blackKeyPegs, whiteKeyPegs);
+            var result = decodingBoard.HasSolvedSecretCode(response);
+
+            //Assert
+            result.Should().BeFalse();
+        }
+
+        [Theory]
+        [InlineData(-1, 0)]
+        [InlineData(0, -1)]
+        [InlineData(5, 0)]
+        [InlineData(0, 5)]
+        [InlineData(4, 1)]
+        [InlineData(1, 4)]
+        public void ShouldThrowArgumentExceptionWhenTotalKeyPegsOutsideBoundaries(int blackKeyPegs, int whiteKeyPegs)
+        {
+            //Arrange
+            var colors = new[] {CodePeg.Black, CodePeg.Blue, CodePeg.Green, CodePeg.White};
+            var shield = new Shield(colors);
+            var decodingBoard = new DecodingBoard();
+            decodingBoard.CodeMaker(shield);
+            
+            //Act
+            var response = new Response(blackKeyPegs, whiteKeyPegs);
+            void Action() => decodingBoard.HasSolvedSecretCode(response);
+            var exception = Record.Exception(Action);
+
+            //Assert
+            exception.Should().BeOfType<ArgumentException>();
+        }
     }
 }

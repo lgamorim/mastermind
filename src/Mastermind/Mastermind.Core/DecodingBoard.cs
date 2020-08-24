@@ -29,6 +29,14 @@ namespace Mastermind.Core
             return response;
         }
 
+        public bool HasSolvedSecretCode(Response response)
+        {
+            var totalKeyPegs = response.BlackKeyPegs + response.WhiteKeyPegs;
+            if (totalKeyPegs < 0 || totalKeyPegs > Shield.Count) throw new ArgumentException();
+            
+            return response.BlackKeyPegs == Shield.Count;
+        }
+
         private void FindBlackKeyPegs(CodePeg[] code, KeyPeg?[] keyPegs)
         {
             for (var i = 0; i < code.Length; i++)
