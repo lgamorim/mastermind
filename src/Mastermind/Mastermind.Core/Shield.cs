@@ -8,8 +8,8 @@ namespace Mastermind.Core
 
         public Shield(CodePeg[] colors)
         {
-            if (colors is null) throw new ArgumentNullException();
-            if (colors.Length == 0) throw new ArgumentException();
+            if (colors is null) throw new ArgumentNullException(nameof(colors));
+            if (colors.Length == 0) throw new ArgumentException(nameof(colors));
             this.colors = colors;
         }
 

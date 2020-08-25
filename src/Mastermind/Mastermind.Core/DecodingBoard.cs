@@ -9,14 +9,14 @@ namespace Mastermind.Core
 
         public void CodeMaker(Shield shield)
         {
-            if (shield is null) throw new ArgumentNullException();
+            if (shield is null) throw new ArgumentNullException(nameof(shield));
             Shield = shield;
         }
 
         public Response CodeBreaker(CodePeg[] code)
         {
-            if (code is null) throw new ArgumentNullException();
-            if (code.Length != Shield.Count) throw new ArgumentException();
+            if (code is null) throw new ArgumentNullException(nameof(code));
+            if (code.Length != Shield.Count) throw new ArgumentException(nameof(code));
 
             var keyPegs = new KeyPeg?[code.Length];
             FindBlackKeyPegs(code, keyPegs);
@@ -32,7 +32,7 @@ namespace Mastermind.Core
         public bool HasSolvedSecretCode(Response response)
         {
             var totalKeyPegs = response.BlackKeyPegs + response.WhiteKeyPegs;
-            if (totalKeyPegs < 0 || totalKeyPegs > Shield.Count) throw new ArgumentException();
+            if (totalKeyPegs < 0 || totalKeyPegs > Shield.Count) throw new ArgumentException(nameof(response));
             
             return response.BlackKeyPegs == Shield.Count;
         }
