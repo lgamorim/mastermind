@@ -6,14 +6,32 @@ namespace Mastermind.Core.UnitTests
 {
     public class DecodingBoardTests
     {
+        [Theory]
+        [InlineData(0, 0)]
+        [InlineData(0, 1)]
+        [InlineData(1, 0)]
+        [InlineData(-1, -1)]
+        public void ShouldThrowArgumentExceptionWhenBoardConfigIsInvalid(int shieldSize, int totalRows)
+        {
+            //Arrange
+            var boardConfig = new BoardConfig(shieldSize, totalRows);
+
+            //Act
+            var action = new Action(() => new DecodingBoard(boardConfig));
+
+            //Assert
+            action.Should().Throw<ArgumentException>();
+        }
+        
         [Fact]
         public void ShouldCreateShieldWhenCodeMakerPlaysValidShield()
         {
             //Arrange
-            const int count = 4;
-            var colors = new CodePeg[count];
+            var boardConfig = new BoardConfig(4, 10);
+            var decodingBoard = new DecodingBoard(boardConfig);
+            
+            var colors = new CodePeg[4];
             var shield = new Shield(colors);
-            var decodingBoard = new DecodingBoard();
 
             //Act
             decodingBoard.CodeMaker(shield);
@@ -27,7 +45,8 @@ namespace Mastermind.Core.UnitTests
         public void ShouldThrowArgumentNullExceptionWhenCodeMakerShieldIsNull()
         {
             //Arrange
-            var decodingBoard = new DecodingBoard();
+            var boardConfig = new BoardConfig(4, 10);
+            var decodingBoard = new DecodingBoard(boardConfig);
             
             //Act
             void Action() => decodingBoard.CodeMaker(null);
@@ -38,17 +57,40 @@ namespace Mastermind.Core.UnitTests
             exception.Should().BeOfType<ArgumentNullException>();
         }
 
+        [Theory]
+        [InlineData(3)]
+        [InlineData(5)]
+        public void ShouldThrowArgumentExceptionWhenCodeMakerShieldIsDifferentThanConfig(int shieldSize)
+        {
+            //Arrange
+            var boardConfig = new BoardConfig(4, 10);
+            var decodingBoard = new DecodingBoard(boardConfig);
+            
+            var colors = new CodePeg[shieldSize];
+            var shield = new Shield(colors);
+
+            //Act
+            void Action() => decodingBoard.CodeMaker(shield);
+            var exception = Record.Exception(Action);
+
+            //Assert
+            exception.Should().BeOfType<ArgumentException>();
+        }
+
         [Fact]
         public void ShouldFindAllBlackKeyPegsWhenAllCodeColorsMatchShieldPosition()
         {
             //Arrange
+            var boardConfig = new BoardConfig(4, 10);
+            var decodingBoard = new DecodingBoard(boardConfig);
+            
             var colors = new[] {CodePeg.Black, CodePeg.Blue, CodePeg.Green, CodePeg.White};
             var shield = new Shield(colors);
-            var decodingBoard = new DecodingBoard();
             decodingBoard.CodeMaker(shield);
             
-            //Act
             var code = new[] {CodePeg.Black, CodePeg.Blue, CodePeg.Green, CodePeg.White};
+            
+            //Act
             var result = decodingBoard.CodeBreaker(code);
 
             //Assert
@@ -61,13 +103,16 @@ namespace Mastermind.Core.UnitTests
         public void ShouldFindAllWhiteKeyPegsWhenAllCodeColorsMatchOtherShieldPosition()
         {
             //Arrange
+            var boardConfig = new BoardConfig(4, 10);
+            var decodingBoard = new DecodingBoard(boardConfig);
+            
             var colors = new[] {CodePeg.Black, CodePeg.Blue, CodePeg.Green, CodePeg.White};
             var shield = new Shield(colors);
-            var decodingBoard = new DecodingBoard();
             decodingBoard.CodeMaker(shield);
             
-            //Act
             var code = new[] {CodePeg.White, CodePeg.Green, CodePeg.Blue, CodePeg.Black};
+            
+            //Act
             var result = decodingBoard.CodeBreaker(code);
 
             //Assert
@@ -84,9 +129,11 @@ namespace Mastermind.Core.UnitTests
         public void ShouldFindOneBlackKeyPegWhenCodeColorMatchesSingleShieldPosition(CodePeg[] code)
         {
             //Arrange
+            var boardConfig = new BoardConfig(4, 10);
+            var decodingBoard = new DecodingBoard(boardConfig);
+            
             var colors = new[] {CodePeg.Black, CodePeg.Blue, CodePeg.Green, CodePeg.White};
             var shield = new Shield(colors);
-            var decodingBoard = new DecodingBoard();
             decodingBoard.CodeMaker(shield);
             
             //Act
@@ -105,9 +152,11 @@ namespace Mastermind.Core.UnitTests
         public void ShouldFindOneWhiteKeyPegWhenCodeColorMatchesSingleOtherShieldPosition(CodePeg[] code)
         {
             //Arrange
+            var boardConfig = new BoardConfig(4, 10);
+            var decodingBoard = new DecodingBoard(boardConfig);
+            
             var colors = new[] {CodePeg.Black, CodePeg.Blue, CodePeg.Green, CodePeg.White};
             var shield = new Shield(colors);
-            var decodingBoard = new DecodingBoard();
             decodingBoard.CodeMaker(shield);
             
             //Act
@@ -126,9 +175,11 @@ namespace Mastermind.Core.UnitTests
         public void ShouldFindTwoBlackKeyPegsWhenCodeColorMatchesTwoShieldPositions(CodePeg[] code)
         {
             //Arrange
+            var boardConfig = new BoardConfig(4, 10);
+            var decodingBoard = new DecodingBoard(boardConfig);
+            
             var colors = new[] {CodePeg.Black, CodePeg.Blue, CodePeg.Blue, CodePeg.Black};
             var shield = new Shield(colors);
-            var decodingBoard = new DecodingBoard();
             decodingBoard.CodeMaker(shield);
             
             //Act
@@ -147,9 +198,11 @@ namespace Mastermind.Core.UnitTests
         public void ShouldFindTwoWhiteKeyPegsWhenCodeColorMatchesTwoOtherShieldPositions(CodePeg[] code)
         {
             //Arrange
+            var boardConfig = new BoardConfig(4, 10);
+            var decodingBoard = new DecodingBoard(boardConfig);
+            
             var colors = new[] {CodePeg.Black, CodePeg.Blue, CodePeg.Blue, CodePeg.Black};
             var shield = new Shield(colors);
-            var decodingBoard = new DecodingBoard();
             decodingBoard.CodeMaker(shield);
             
             //Act
@@ -166,9 +219,11 @@ namespace Mastermind.Core.UnitTests
         public void ShouldNotFindTwoWhiteKeyPegsWhenCodeColorMatchesSingleOtherShieldPosition(CodePeg[] code)
         {
             //Arrange
+            var boardConfig = new BoardConfig(4, 10);
+            var decodingBoard = new DecodingBoard(boardConfig);
+            
             var colors = new[] {CodePeg.Black, CodePeg.Blue, CodePeg.Green, CodePeg.White};
             var shield = new Shield(colors);
-            var decodingBoard = new DecodingBoard();
             decodingBoard.CodeMaker(shield);
             
             //Act
@@ -187,9 +242,11 @@ namespace Mastermind.Core.UnitTests
         public void ShouldFindThreeWhiteKeyPegsWhenCodeColorMatchesThreeOtherShieldPositions(CodePeg[] code)
         {
             //Arrange
+            var boardConfig = new BoardConfig(4, 10);
+            var decodingBoard = new DecodingBoard(boardConfig);
+            
             var colors = new[] {CodePeg.Black, CodePeg.Blue, CodePeg.Green, CodePeg.White};
             var shield = new Shield(colors);
-            var decodingBoard = new DecodingBoard();
             decodingBoard.CodeMaker(shield);
             
             //Act
@@ -204,9 +261,11 @@ namespace Mastermind.Core.UnitTests
         public void ShouldThrowArgumentExceptionWhenCodeBreakerCodeIsEmpty()
         {
             //Arrange
+            var boardConfig = new BoardConfig(4, 10);
+            var decodingBoard = new DecodingBoard(boardConfig);
+            
             var colors = new[] {CodePeg.Black, CodePeg.Blue, CodePeg.Green, CodePeg.White};
             var shield = new Shield(colors);
-            var decodingBoard = new DecodingBoard();
             decodingBoard.CodeMaker(shield);
 
             //Act
@@ -221,9 +280,11 @@ namespace Mastermind.Core.UnitTests
         public void ShouldThrowArgumentExceptionWhenCodeBreakerCodeIsGreaterThanShield()
         {
             //Arrange
+            var boardConfig = new BoardConfig(4, 10);
+            var decodingBoard = new DecodingBoard(boardConfig);
+            
             var colors = new[] {CodePeg.Black, CodePeg.Blue, CodePeg.Green, CodePeg.White};
             var shield = new Shield(colors);
-            var decodingBoard = new DecodingBoard();
             decodingBoard.CodeMaker(shield);
 
             //Act
@@ -238,9 +299,11 @@ namespace Mastermind.Core.UnitTests
         public void ShouldThrowArgumentNullExceptionWhenCodeBreakerCodeIsNull()
         {
             //Arrange
+            var boardConfig = new BoardConfig(4, 10);
+            var decodingBoard = new DecodingBoard(boardConfig);
+            
             var colors = new[] {CodePeg.Black, CodePeg.Blue, CodePeg.Green, CodePeg.White};
             var shield = new Shield(colors);
-            var decodingBoard = new DecodingBoard();
             decodingBoard.CodeMaker(shield);
 
             //Act
@@ -252,16 +315,19 @@ namespace Mastermind.Core.UnitTests
         }
 
         [Fact]
-        public void ShouldSolveSecretCodeWhenBlackPegsEqualsShieldCount()
+        public void ShouldSolveSecretCodeWhenResponseBlackPegsEqualsShieldCount()
         {
             //Arrange
+            var boardConfig = new BoardConfig(4, 10);
+            var decodingBoard = new DecodingBoard(boardConfig);
+            
             var colors = new[] {CodePeg.Black, CodePeg.Blue, CodePeg.Green, CodePeg.White};
             var shield = new Shield(colors);
-            var decodingBoard = new DecodingBoard();
             decodingBoard.CodeMaker(shield);
             
-            //Act
             var response = new Response(4, 0);
+            
+            //Act
             var result = decodingBoard.HasSolvedSecretCode(response);
 
             //Assert
@@ -273,16 +339,19 @@ namespace Mastermind.Core.UnitTests
         [InlineData(1, 2)]
         [InlineData(2, 1)]
         [InlineData(3, 0)]
-        public void ShouldNotSolveSecretCodeWhenBlackPegsNotEqualsShieldCount(int blackKeyPegs, int whiteKeyPegs)
+        public void ShouldNotSolveSecretCodeWhenResponseBlackPegsNotEqualsShieldCount(int blackKeyPegs, int whiteKeyPegs)
         {
             //Arrange
+            var boardConfig = new BoardConfig(4, 10);
+            var decodingBoard = new DecodingBoard(boardConfig);
+            
             var colors = new[] {CodePeg.Black, CodePeg.Blue, CodePeg.Green, CodePeg.White};
             var shield = new Shield(colors);
-            var decodingBoard = new DecodingBoard();
             decodingBoard.CodeMaker(shield);
             
-            //Act
             var response = new Response(blackKeyPegs, whiteKeyPegs);
+            
+            //Act
             var result = decodingBoard.HasSolvedSecretCode(response);
 
             //Assert
@@ -296,16 +365,19 @@ namespace Mastermind.Core.UnitTests
         [InlineData(0, 5)]
         [InlineData(4, 1)]
         [InlineData(1, 4)]
-        public void ShouldThrowArgumentExceptionWhenTotalKeyPegsOutsideBoundaries(int blackKeyPegs, int whiteKeyPegs)
+        public void ShouldThrowArgumentExceptionWhenResponseTotalKeyPegsOutsideBoundaries(int blackKeyPegs, int whiteKeyPegs)
         {
             //Arrange
+            var boardConfig = new BoardConfig(4, 10);
+            var decodingBoard = new DecodingBoard(boardConfig);
+            
             var colors = new[] {CodePeg.Black, CodePeg.Blue, CodePeg.Green, CodePeg.White};
             var shield = new Shield(colors);
-            var decodingBoard = new DecodingBoard();
             decodingBoard.CodeMaker(shield);
             
-            //Act
             var response = new Response(blackKeyPegs, whiteKeyPegs);
+            
+            //Act
             void Action() => decodingBoard.HasSolvedSecretCode(response);
             var exception = Record.Exception(Action);
 

@@ -5,11 +5,22 @@ namespace Mastermind.Core
 {
     public class DecodingBoard
     {
+        public DecodingBoard(BoardConfig boardConfig)
+        {
+            if (boardConfig.ShieldSize <= 0 || boardConfig.TotalRows <= 0)
+                throw new ArgumentException(nameof(boardConfig));
+            
+            BoardConfig = boardConfig;
+        }
+
+        public BoardConfig BoardConfig { get; }
+
         public Shield Shield { get; private set; }
 
         public void CodeMaker(Shield shield)
         {
             if (shield is null) throw new ArgumentNullException(nameof(shield));
+            if (shield.Count != BoardConfig.ShieldSize) throw new ArgumentException(nameof(shield));
             Shield = shield;
         }
 
@@ -33,7 +44,7 @@ namespace Mastermind.Core
         {
             var totalKeyPegs = response.BlackKeyPegs + response.WhiteKeyPegs;
             if (totalKeyPegs < 0 || totalKeyPegs > Shield.Count) throw new ArgumentException(nameof(response));
-            
+
             return response.BlackKeyPegs == Shield.Count;
         }
 
