@@ -5,6 +5,11 @@ namespace Mastermind.Core
 {
     public class DecodingBoard
     {
+        public DecodingBoard()
+        {
+            BoardConfig = new BoardConfig(4, 10);
+        }
+        
         public DecodingBoard(BoardConfig boardConfig)
         {
             if (boardConfig.ShieldSize <= 0 || boardConfig.TotalRows <= 0)
