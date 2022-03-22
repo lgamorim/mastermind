@@ -7,7 +7,7 @@ namespace Mastermind.Core.UnitTests
     public class ShieldTests
     {
         [Fact]
-        public void ShouldAccessLowerIndexWhenShieldHasColors()
+        public void Should_AccessLowerIndex_When_ShieldHasColors()
         {
             //Arrange
             const int count = 4;
@@ -22,7 +22,7 @@ namespace Mastermind.Core.UnitTests
         }
 
         [Fact]
-        public void ShouldAccessUpperIndexWhenShieldHasColors()
+        public void Should_AccessUpperIndex_When_ShieldHasColors()
         {
             //Arrange
             const int count = 4;
@@ -37,7 +37,7 @@ namespace Mastermind.Core.UnitTests
         }
 
         [Fact]
-        public void ShouldMatchHolesCountWhenShieldHasColors()
+        public void Should_MatchHolesCount_When_ShieldHasColors()
         {
             //Arrange
             const int count = 4;
@@ -51,7 +51,7 @@ namespace Mastermind.Core.UnitTests
         }
 
         [Fact]
-        public void ShouldMatchIndexColorWhenShieldHasColors()
+        public void Should_MatchIndexColor_When_ShieldHasColors()
         {
             //Arrange
             var colors = new[]
@@ -73,7 +73,7 @@ namespace Mastermind.Core.UnitTests
         }
 
         [Fact]
-        public void ShouldThrowArgumentExceptionWhenColorsIsEmpty()
+        public void Should_ThrowArgumentException_When_ColorsIsEmpty()
         {
             //Arrange
             var colors = new CodePeg[0];
@@ -86,7 +86,7 @@ namespace Mastermind.Core.UnitTests
         }
 
         [Fact]
-        public void ShouldThrowArgumentNullExceptionWhenColorsIsNull()
+        public void Should_ThrowArgumentNullException_When_ColorsIsNull()
         {
             //Arrange
 
@@ -102,7 +102,7 @@ namespace Mastermind.Core.UnitTests
         [InlineData(1, CodePeg.Blue)]
         [InlineData(2, CodePeg.Green)]
         [InlineData(3, CodePeg.White)]
-        public void ShouldHaveColorAtIndexWhenCodePegMatchesShieldColor(int index, CodePeg color)
+        public void Should_HaveColorAtIndex_When_CodePegMatchesShieldColor(int index, CodePeg color)
         {
             //Arrange
             var colors = new[]
@@ -127,7 +127,7 @@ namespace Mastermind.Core.UnitTests
         [InlineData(0, CodePeg.Red)]
         [InlineData(0, CodePeg.White)]
         [InlineData(0, CodePeg.Yellow)]
-        public void ShouldNotHaveColorAtIndexWhenComparedToAllOtherCodePegs(int index, CodePeg color)
+        public void Should_NotHaveColorAtIndex_When_ComparedToAllOtherCodePegs(int index, CodePeg color)
         {
             //Arrange
             var colors = new[]

@@ -11,7 +11,7 @@ namespace Mastermind.Core.UnitTests
         [InlineData(0, 1)]
         [InlineData(1, 0)]
         [InlineData(-1, -1)]
-        public void ShouldThrowArgumentExceptionWhenBoardConfigIsInvalid(int shieldSize, int totalRows)
+        public void Should_ThrowArgumentException_When_BoardConfigIsInvalid(int shieldSize, int totalRows)
         {
             //Arrange
             var boardConfig = new BoardConfig(shieldSize, totalRows);
@@ -24,7 +24,7 @@ namespace Mastermind.Core.UnitTests
         }
         
         [Fact]
-        public void ShouldCreateShieldWhenCodeMakerPlaysValidShield()
+        public void Should_CreateShield_When_CodeMakerPlaysValidShield()
         {
             //Arrange
             var boardConfig = new BoardConfig(4, 10);
@@ -42,7 +42,7 @@ namespace Mastermind.Core.UnitTests
         }
 
         [Fact]
-        public void ShouldThrowArgumentNullExceptionWhenCodeMakerShieldIsNull()
+        public void Should_ThrowArgumentNullException_When_CodeMakerShieldIsNull()
         {
             //Arrange
             var boardConfig = new BoardConfig(4, 10);
@@ -60,7 +60,7 @@ namespace Mastermind.Core.UnitTests
         [Theory]
         [InlineData(3)]
         [InlineData(5)]
-        public void ShouldThrowArgumentExceptionWhenCodeMakerShieldIsDifferentThanConfig(int shieldSize)
+        public void Should_ThrowArgumentException_When_CodeMakerShieldIsDifferentThanConfig(int shieldSize)
         {
             //Arrange
             var boardConfig = new BoardConfig(4, 10);
@@ -78,7 +78,7 @@ namespace Mastermind.Core.UnitTests
         }
 
         [Fact]
-        public void ShouldFindAllBlackKeyPegsWhenAllCodeColorsMatchShieldPosition()
+        public void Should_FindAllBlackKeyPegs_When_AllCodeColorsMatchShieldPosition()
         {
             //Arrange
             var boardConfig = new BoardConfig(4, 10);
@@ -100,7 +100,7 @@ namespace Mastermind.Core.UnitTests
         }
 
         [Fact]
-        public void ShouldFindAllWhiteKeyPegsWhenAllCodeColorsMatchOtherShieldPosition()
+        public void Should_FindAllWhiteKeyPegs_When_AllCodeColorsMatchOtherShieldPosition()
         {
             //Arrange
             var boardConfig = new BoardConfig(4, 10);
@@ -126,7 +126,7 @@ namespace Mastermind.Core.UnitTests
         [InlineData(new[]{CodePeg.Red, CodePeg.Blue, CodePeg.Yellow, CodePeg.Red})]
         [InlineData(new[]{CodePeg.Blue, CodePeg.White, CodePeg.Green, CodePeg.Black})]
         [InlineData(new[]{CodePeg.White, CodePeg.White, CodePeg.White, CodePeg.White})]
-        public void ShouldFindOneBlackKeyPegWhenCodeColorMatchesSingleShieldPosition(CodePeg[] code)
+        public void Should_FindOneBlackKeyPeg_When_CodeColorMatchesSingleShieldPosition(CodePeg[] code)
         {
             //Arrange
             var boardConfig = new BoardConfig(4, 10);
@@ -149,7 +149,7 @@ namespace Mastermind.Core.UnitTests
         [InlineData(new[]{CodePeg.Blue, CodePeg.Red, CodePeg.Yellow, CodePeg.Red})]
         [InlineData(new[]{CodePeg.Red, CodePeg.Yellow, CodePeg.Red, CodePeg.Green})]
         [InlineData(new[]{CodePeg.Black, CodePeg.Blue, CodePeg.White, CodePeg.Red})]
-        public void ShouldFindOneWhiteKeyPegWhenCodeColorMatchesSingleOtherShieldPosition(CodePeg[] code)
+        public void Should_FindOneWhiteKeyPeg_When_CodeColorMatchesSingleOtherShieldPosition(CodePeg[] code)
         {
             //Arrange
             var boardConfig = new BoardConfig(4, 10);
@@ -172,7 +172,7 @@ namespace Mastermind.Core.UnitTests
         [InlineData(new[]{CodePeg.Black, CodePeg.Green, CodePeg.White, CodePeg.Black})]
         [InlineData(new[]{CodePeg.Green, CodePeg.Blue, CodePeg.Blue, CodePeg.White})]
         [InlineData(new[]{CodePeg.Blue, CodePeg.Blue, CodePeg.Black, CodePeg.Black})]
-        public void ShouldFindTwoBlackKeyPegsWhenCodeColorMatchesTwoShieldPositions(CodePeg[] code)
+        public void Should_FindTwoBlackKeyPegs_When_CodeColorMatchesTwoShieldPositions(CodePeg[] code)
         {
             //Arrange
             var boardConfig = new BoardConfig(4, 10);
@@ -195,7 +195,7 @@ namespace Mastermind.Core.UnitTests
         [InlineData(new[]{CodePeg.Blue, CodePeg.Green, CodePeg.White, CodePeg.Blue})]
         [InlineData(new[]{CodePeg.Green, CodePeg.Black, CodePeg.Black, CodePeg.White})]
         [InlineData(new[]{CodePeg.Blue, CodePeg.Blue, CodePeg.Black, CodePeg.Black})]
-        public void ShouldFindTwoWhiteKeyPegsWhenCodeColorMatchesTwoOtherShieldPositions(CodePeg[] code)
+        public void Should_FindTwoWhiteKeyPegs_When_CodeColorMatchesTwoOtherShieldPositions(CodePeg[] code)
         {
             //Arrange
             var boardConfig = new BoardConfig(4, 10);
@@ -216,7 +216,7 @@ namespace Mastermind.Core.UnitTests
         [Theory]
         [InlineData(new[]{CodePeg.Black, CodePeg.Red, CodePeg.Blue, CodePeg.Blue})]
         [InlineData(new[]{CodePeg.Red, CodePeg.Blue, CodePeg.Black, CodePeg.Black})]
-        public void ShouldNotFindTwoWhiteKeyPegsWhenCodeColorMatchesSingleOtherShieldPosition(CodePeg[] code)
+        public void Should_NotFindTwoWhiteKeyPegs_When_CodeColorMatchesSingleOtherShieldPosition(CodePeg[] code)
         {
             //Arrange
             var boardConfig = new BoardConfig(4, 10);
@@ -239,7 +239,7 @@ namespace Mastermind.Core.UnitTests
         [InlineData(new[]{CodePeg.Red, CodePeg.Black, CodePeg.White, CodePeg.Green})]
         [InlineData(new[]{CodePeg.Blue, CodePeg.Black, CodePeg.White, CodePeg.Red})]
         [InlineData(new[]{CodePeg.Green, CodePeg.Black, CodePeg.Blue, CodePeg.White})]
-        public void ShouldFindThreeWhiteKeyPegsWhenCodeColorMatchesThreeOtherShieldPositions(CodePeg[] code)
+        public void Should_FindThreeWhiteKeyPegs_When_CodeColorMatchesThreeOtherShieldPositions(CodePeg[] code)
         {
             //Arrange
             var boardConfig = new BoardConfig(4, 10);
@@ -258,7 +258,7 @@ namespace Mastermind.Core.UnitTests
         }
 
         [Fact]
-        public void ShouldThrowArgumentExceptionWhenCodeBreakerCodeIsEmpty()
+        public void Should_ThrowArgumentException_When_CodeBreakerCodeIsEmpty()
         {
             //Arrange
             var boardConfig = new BoardConfig(4, 10);
@@ -277,7 +277,7 @@ namespace Mastermind.Core.UnitTests
         }
 
         [Fact]
-        public void ShouldThrowArgumentExceptionWhenCodeBreakerCodeIsGreaterThanShield()
+        public void Should_ThrowArgumentException_When_CodeBreakerCodeIsGreaterThanShield()
         {
             //Arrange
             var boardConfig = new BoardConfig(4, 10);
@@ -296,7 +296,7 @@ namespace Mastermind.Core.UnitTests
         }
 
         [Fact]
-        public void ShouldThrowArgumentNullExceptionWhenCodeBreakerCodeIsNull()
+        public void Should_ThrowArgumentNullException_When_CodeBreakerCodeIsNull()
         {
             //Arrange
             var boardConfig = new BoardConfig(4, 10);
@@ -315,7 +315,7 @@ namespace Mastermind.Core.UnitTests
         }
 
         [Fact]
-        public void ShouldSolveSecretCodeWhenResponseBlackPegsEqualsShieldCount()
+        public void Should_SolveSecretCode_When_ResponseBlackPegsEqualsShieldCount()
         {
             //Arrange
             var boardConfig = new BoardConfig(4, 10);
@@ -339,7 +339,7 @@ namespace Mastermind.Core.UnitTests
         [InlineData(1, 2)]
         [InlineData(2, 1)]
         [InlineData(3, 0)]
-        public void ShouldNotSolveSecretCodeWhenResponseBlackPegsNotEqualsShieldCount(int blackKeyPegs, int whiteKeyPegs)
+        public void Should_NotSolveSecretCode_When_ResponseBlackPegsNotEqualsShieldCount(int blackKeyPegs, int whiteKeyPegs)
         {
             //Arrange
             var boardConfig = new BoardConfig(4, 10);
@@ -365,7 +365,7 @@ namespace Mastermind.Core.UnitTests
         [InlineData(0, 5)]
         [InlineData(4, 1)]
         [InlineData(1, 4)]
-        public void ShouldThrowArgumentExceptionWhenResponseTotalKeyPegsOutsideBoundaries(int blackKeyPegs, int whiteKeyPegs)
+        public void Should_ThrowArgumentException_When_ResponseTotalKeyPegsOutsideBoundaries(int blackKeyPegs, int whiteKeyPegs)
         {
             //Arrange
             var boardConfig = new BoardConfig(4, 10);
