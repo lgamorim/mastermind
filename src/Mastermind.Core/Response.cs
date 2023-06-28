@@ -1,15 +1,14 @@
-﻿namespace Mastermind.Core
+﻿namespace Mastermind.Core;
+
+public readonly struct Response
 {
-    public readonly struct Response
+    public Response(int blackKeyPegs, int whiteKeyPegs)
     {
-        public Response(int blackKeyPegs, int whiteKeyPegs)
-        {
-            BlackKeyPegs = blackKeyPegs;
-            WhiteKeyPegs = whiteKeyPegs;
-        }
-        
-        public int BlackKeyPegs { get; }
-        
-        public int WhiteKeyPegs { get; }
+        BlackKeyPegs = blackKeyPegs;
+        WhiteKeyPegs = whiteKeyPegs;
     }
+        
+    public int BlackKeyPegs { get; }
+        
+    public int WhiteKeyPegs { get; }
 }

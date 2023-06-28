@@ -1,12 +1,11 @@
-﻿namespace Mastermind.Core
+﻿namespace Mastermind.Core;
+
+public enum CodePeg
 {
-    public enum CodePeg
-    {
-        Red,
-        Blue,
-        Yellow,
-        Green,
-        White,
-        Black
-    }
+    Red,
+    Blue,
+    Yellow,
+    Green,
+    White,
+    Black
 }

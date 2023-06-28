@@ -1,15 +1,14 @@
-﻿namespace Mastermind.Core
+﻿namespace Mastermind.Core;
+
+public readonly struct BoardConfig
 {
-    public readonly struct BoardConfig
+    public BoardConfig(int shieldSize, int totalRows)
     {
-        public BoardConfig(int shieldSize, int totalRows)
-        {
-            ShieldSize = shieldSize;
-            TotalRows = totalRows;
-        }
-
-        public int ShieldSize { get; }
-
-        public int TotalRows { get; }
+        ShieldSize = shieldSize;
+        TotalRows = totalRows;
     }
+
+    public int ShieldSize { get; }
+
+    public int TotalRows { get; }
 }

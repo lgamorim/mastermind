@@ -1,77 +1,76 @@
 ﻿using System;
 using System.Linq;
 
-namespace Mastermind.Core
+namespace Mastermind.Core;
+
+public class DecodingBoard
 {
-    public class DecodingBoard
+    public DecodingBoard()
     {
-        public DecodingBoard()
+        BoardConfig = new BoardConfig(4, 10);
+    }
+
+    public DecodingBoard(BoardConfig boardConfig)
+    {
+        if (boardConfig.ShieldSize <= 0 || boardConfig.TotalRows <= 0)
+            throw new ArgumentException(nameof(boardConfig));
+
+        BoardConfig = boardConfig;
+    }
+
+    public BoardConfig BoardConfig { get; }
+
+    public Shield Shield { get; private set; }
+
+    public void PlayCodeMaker(Shield shield)
+    {
+        if (shield is null) throw new ArgumentNullException(nameof(shield));
+        if (shield.Count != BoardConfig.ShieldSize) throw new ArgumentException(nameof(shield));
+        Shield = shield;
+    }
+
+    public Response PlayCodeBreaker(CodePeg[] code)
+    {
+        if (code is null) throw new ArgumentNullException(nameof(code));
+        if (code.Length != Shield.Count) throw new ArgumentException(nameof(code));
+
+        var keyPegs = new KeyPeg?[code.Length];
+        FindBlackKeyPegs(code, keyPegs);
+        FindWhiteKeyPegs(code, keyPegs);
+
+        var blackKeyPegs = keyPegs.Count(k => k == KeyPeg.Black);
+        var whiteKeyPegs = keyPegs.Count(k => k == KeyPeg.White);
+        var response = new Response(blackKeyPegs, whiteKeyPegs);
+
+        return response;
+    }
+
+    public bool HasCodeBreakerSolvedSecretCode(Response response)
+    {
+        var totalKeyPegs = response.BlackKeyPegs + response.WhiteKeyPegs;
+        if (totalKeyPegs < 0 || totalKeyPegs > Shield.Count) throw new ArgumentException(nameof(response));
+
+        return response.BlackKeyPegs == Shield.Count;
+    }
+
+    private void FindBlackKeyPegs(CodePeg[] code, KeyPeg?[] keyPegs)
+    {
+        for (var i = 0; i < code.Length; i++)
         {
-            BoardConfig = new BoardConfig(4, 10);
+            if (Shield.HasColorAt(i, code[i]))
+                keyPegs[i] = KeyPeg.Black;
         }
+    }
 
-        public DecodingBoard(BoardConfig boardConfig)
-        {
-            if (boardConfig.ShieldSize <= 0 || boardConfig.TotalRows <= 0)
-                throw new ArgumentException(nameof(boardConfig));
-
-            BoardConfig = boardConfig;
-        }
-
-        public BoardConfig BoardConfig { get; }
-
-        public Shield Shield { get; private set; }
-
-        public void PlayCodeMaker(Shield shield)
-        {
-            if (shield is null) throw new ArgumentNullException(nameof(shield));
-            if (shield.Count != BoardConfig.ShieldSize) throw new ArgumentException(nameof(shield));
-            Shield = shield;
-        }
-
-        public Response PlayCodeBreaker(CodePeg[] code)
-        {
-            if (code is null) throw new ArgumentNullException(nameof(code));
-            if (code.Length != Shield.Count) throw new ArgumentException(nameof(code));
-
-            var keyPegs = new KeyPeg?[code.Length];
-            FindBlackKeyPegs(code, keyPegs);
-            FindWhiteKeyPegs(code, keyPegs);
-
-            var blackKeyPegs = keyPegs.Count(k => k == KeyPeg.Black);
-            var whiteKeyPegs = keyPegs.Count(k => k == KeyPeg.White);
-            var response = new Response(blackKeyPegs, whiteKeyPegs);
-
-            return response;
-        }
-
-        public bool HasCodeBreakerSolvedSecretCode(Response response)
-        {
-            var totalKeyPegs = response.BlackKeyPegs + response.WhiteKeyPegs;
-            if (totalKeyPegs < 0 || totalKeyPegs > Shield.Count) throw new ArgumentException(nameof(response));
-
-            return response.BlackKeyPegs == Shield.Count;
-        }
-
-        private void FindBlackKeyPegs(CodePeg[] code, KeyPeg?[] keyPegs)
+    private void FindWhiteKeyPegs(CodePeg[] code, KeyPeg?[] keyPegs)
+    {
+        foreach (var color in code)
         {
             for (var i = 0; i < code.Length; i++)
             {
-                if (Shield.HasColorAt(i, code[i]))
-                    keyPegs[i] = KeyPeg.Black;
-            }
-        }
-
-        private void FindWhiteKeyPegs(CodePeg[] code, KeyPeg?[] keyPegs)
-        {
-            foreach (var color in code)
-            {
-                for (var i = 0; i < code.Length; i++)
-                {
-                    if (keyPegs[i] is not null || !Shield.HasColorAt(i, color)) continue;
-                    keyPegs[i] = KeyPeg.White;
-                    break;
-                }
+                if (keyPegs[i] is not null || !Shield.HasColorAt(i, color)) continue;
+                keyPegs[i] = KeyPeg.White;
+                break;
             }
         }
     }

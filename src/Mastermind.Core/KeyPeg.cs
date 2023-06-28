@@ -1,8 +1,7 @@
-﻿namespace Mastermind.Core
+﻿namespace Mastermind.Core;
+
+public enum KeyPeg
 {
-    public enum KeyPeg
-    {
-        White,
-        Black
-    }
+    White,
+    Black
 }
