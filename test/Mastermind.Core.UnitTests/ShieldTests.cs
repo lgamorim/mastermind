@@ -9,14 +9,11 @@ namespace Mastermind.Core.UnitTests
         [Fact]
         public void Should_AccessLowerIndex_When_ShieldHasColors()
         {
-            //Arrange
             const int count = 4;
             var colors = new CodePeg[count];
 
-            //Act
             var shield = new Shield(colors);
 
-            //Assert
             shield[0].Should().NotBeNull();
             shield[0].Should().BeOfType<CodePeg>();
         }
@@ -24,14 +21,11 @@ namespace Mastermind.Core.UnitTests
         [Fact]
         public void Should_AccessUpperIndex_When_ShieldHasColors()
         {
-            //Arrange
             const int count = 4;
             var colors = new CodePeg[count];
 
-            //Act
             var shield = new Shield(colors);
 
-            //Assert
             shield[count - 1].Should().NotBeNull();
             shield[count - 1].Should().BeOfType<CodePeg>();
         }
@@ -39,21 +33,17 @@ namespace Mastermind.Core.UnitTests
         [Fact]
         public void Should_MatchHolesCount_When_ShieldHasColors()
         {
-            //Arrange
             const int count = 4;
             var colors = new CodePeg[count];
 
-            //Act
             var shield = new Shield(colors);
 
-            //Assert
             shield.Count.Should().Be(count);
         }
 
         [Fact]
         public void Should_MatchIndexColor_When_ShieldHasColors()
         {
-            //Arrange
             var colors = new[]
             {
                 CodePeg.Black,
@@ -62,10 +52,8 @@ namespace Mastermind.Core.UnitTests
                 CodePeg.White
             };
 
-            //Act
             var shield = new Shield(colors);
 
-            //Assert
             shield[0].Should().Be(CodePeg.Black);
             shield[1].Should().Be(CodePeg.Blue);
             shield[2].Should().Be(CodePeg.Green);
@@ -75,25 +63,18 @@ namespace Mastermind.Core.UnitTests
         [Fact]
         public void Should_ThrowArgumentException_When_ColorsIsEmpty()
         {
-            //Arrange
             var colors = new CodePeg[0];
 
-            //Act
             var action = new Action(() => new Shield(colors));
 
-            //Assert
             action.Should().Throw<ArgumentException>();
         }
 
         [Fact]
         public void Should_ThrowArgumentNullException_When_ColorsIsNull()
         {
-            //Arrange
-
-            //Act
             var action = new Action(() => new Shield(null));
 
-            //Assert
             action.Should().Throw<ArgumentNullException>();
         }
 
@@ -104,7 +85,6 @@ namespace Mastermind.Core.UnitTests
         [InlineData(3, CodePeg.White)]
         public void Should_HaveColorAtIndex_When_CodePegMatchesShieldColor(int index, CodePeg color)
         {
-            //Arrange
             var colors = new[]
             {
                 CodePeg.Black,
@@ -114,10 +94,8 @@ namespace Mastermind.Core.UnitTests
             };
             var shield = new Shield(colors);
             
-            //Act
             var result = shield.HasColorAt(index, color);
 
-            //Assert
             result.Should().Be(true);
         }
 
@@ -129,7 +107,6 @@ namespace Mastermind.Core.UnitTests
         [InlineData(0, CodePeg.Yellow)]
         public void Should_NotHaveColorAtIndex_When_ComparedToAllOtherCodePegs(int index, CodePeg color)
         {
-            //Arrange
             var colors = new[]
             {
                 CodePeg.Black,
@@ -139,10 +116,8 @@ namespace Mastermind.Core.UnitTests
             };
             var shield = new Shield(colors);
             
-            //Act
             var result = shield.HasColorAt(index, color);
 
-            //Assert
             result.Should().Be(false);
         }
     }

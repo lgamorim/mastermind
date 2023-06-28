@@ -11,7 +11,7 @@ Console.WriteLine("\n(i) The Code Breaker plays by typing 4 colors separated by 
 var decodingBoard = new DecodingBoard();
 var generatedCode = CodeMakerPlay(decodingBoard.BoardConfig.ShieldSize);
 var shield = new Shield(generatedCode);
-decodingBoard.CodeMaker(shield);
+decodingBoard.PlayCodeMaker(shield);
 
 for (var play = 1; play <= decodingBoard.BoardConfig.TotalRows; play++)
 {
@@ -25,7 +25,7 @@ for (var play = 1; play <= decodingBoard.BoardConfig.TotalRows; play++)
         Console.Write(' ');
     }
 
-    var response = decodingBoard.CodeBreaker(codePlayed);
+    var response = decodingBoard.PlayCodeBreaker(codePlayed);
     
     Console.Write("\n(o) The Code Maker has responded:\n\t");
     

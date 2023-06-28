@@ -1,10 +1,14 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mastermind.Core", "Mastermind.Core\Mastermind.Core.csproj", "{A3257B41-3775-4298-9908-93B68A6BEBF5}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mastermind.Core", "src\Mastermind.Core\Mastermind.Core.csproj", "{A3257B41-3775-4298-9908-93B68A6BEBF5}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mastermind.Core.UnitTests", "Mastermind.Core.UnitTests\Mastermind.Core.UnitTests.csproj", "{3664D4BB-315C-4FEF-801A-FCD5D8C07C22}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mastermind.Core.UnitTests", "test\Mastermind.Core.UnitTests\Mastermind.Core.UnitTests.csproj", "{3664D4BB-315C-4FEF-801A-FCD5D8C07C22}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mastermind.ConsoleApp", "Mastermind.ConsoleApp\Mastermind.ConsoleApp.csproj", "{197F58F8-1853-4FA5-8CD5-6504EDAD4F83}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mastermind.ConsoleApp", "src\Mastermind.ConsoleApp\Mastermind.ConsoleApp.csproj", "{197F58F8-1853-4FA5-8CD5-6504EDAD4F83}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{8B07266C-B1C1-48A3-B88A-455A4FF788AD}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{FC8FB468-02E7-4300-BCFB-19458BEEFACC}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -24,5 +28,10 @@ Global
 		{197F58F8-1853-4FA5-8CD5-6504EDAD4F83}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{197F58F8-1853-4FA5-8CD5-6504EDAD4F83}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{197F58F8-1853-4FA5-8CD5-6504EDAD4F83}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{197F58F8-1853-4FA5-8CD5-6504EDAD4F83} = {8B07266C-B1C1-48A3-B88A-455A4FF788AD}
+		{A3257B41-3775-4298-9908-93B68A6BEBF5} = {8B07266C-B1C1-48A3-B88A-455A4FF788AD}
+		{3664D4BB-315C-4FEF-801A-FCD5D8C07C22} = {FC8FB468-02E7-4300-BCFB-19458BEEFACC}
 	EndGlobalSection
 EndGlobal

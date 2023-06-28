@@ -9,12 +9,12 @@ namespace Mastermind.Core
         {
             BoardConfig = new BoardConfig(4, 10);
         }
-        
+
         public DecodingBoard(BoardConfig boardConfig)
         {
             if (boardConfig.ShieldSize <= 0 || boardConfig.TotalRows <= 0)
                 throw new ArgumentException(nameof(boardConfig));
-            
+
             BoardConfig = boardConfig;
         }
 
@@ -22,14 +22,14 @@ namespace Mastermind.Core
 
         public Shield Shield { get; private set; }
 
-        public void CodeMaker(Shield shield)
+        public void PlayCodeMaker(Shield shield)
         {
             if (shield is null) throw new ArgumentNullException(nameof(shield));
             if (shield.Count != BoardConfig.ShieldSize) throw new ArgumentException(nameof(shield));
             Shield = shield;
         }
 
-        public Response CodeBreaker(CodePeg[] code)
+        public Response PlayCodeBreaker(CodePeg[] code)
         {
             if (code is null) throw new ArgumentNullException(nameof(code));
             if (code.Length != Shield.Count) throw new ArgumentException(nameof(code));
@@ -45,7 +45,7 @@ namespace Mastermind.Core
             return response;
         }
 
-        public bool HasSolvedSecretCode(Response response)
+        public bool HasCodeBreakerSolvedSecretCode(Response response)
         {
             var totalKeyPegs = response.BlackKeyPegs + response.WhiteKeyPegs;
             if (totalKeyPegs < 0 || totalKeyPegs > Shield.Count) throw new ArgumentException(nameof(response));
@@ -56,19 +56,23 @@ namespace Mastermind.Core
         private void FindBlackKeyPegs(CodePeg[] code, KeyPeg?[] keyPegs)
         {
             for (var i = 0; i < code.Length; i++)
+            {
                 if (Shield.HasColorAt(i, code[i]))
                     keyPegs[i] = KeyPeg.Black;
+            }
         }
 
         private void FindWhiteKeyPegs(CodePeg[] code, KeyPeg?[] keyPegs)
         {
             foreach (var color in code)
+            {
                 for (var i = 0; i < code.Length; i++)
-                    if (keyPegs[i] is null && Shield.HasColorAt(i, color))
-                    {
-                        keyPegs[i] = KeyPeg.White;
-                        break;
-                    }
+                {
+                    if (keyPegs[i] is not null || !Shield.HasColorAt(i, color)) continue;
+                    keyPegs[i] = KeyPeg.White;
+                    break;
+                }
+            }
         }
     }
 }

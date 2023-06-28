@@ -17,7 +17,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\Mastermind.Core\Mastermind.Core.csproj" />
+      <ProjectReference Include="..\..\src\Mastermind.Core\Mastermind.Core.csproj" />
     </ItemGroup>
 
 </Project>
