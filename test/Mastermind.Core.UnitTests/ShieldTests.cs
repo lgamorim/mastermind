@@ -71,6 +71,23 @@ public class ShieldTests
     }
 
     [Fact]
+    public void Should_NotReflectSourceArrayMutation_When_ColorsArrayIsModifiedAfterConstruction()
+    {
+        var colors = new[]
+        {
+            CodePeg.Black,
+            CodePeg.Blue,
+            CodePeg.Green,
+            CodePeg.White
+        };
+        var shield = new Shield(colors);
+
+        colors[0] = CodePeg.Red;
+
+        shield[0].Should().Be(CodePeg.Black);
+    }
+
+    [Fact]
     public void Should_ThrowArgumentNullException_When_ColorsIsNull()
     {
         var action = new Action(() => new Shield(null));

@@ -10,7 +10,7 @@ public class Shield
     {
         if (colors is null) throw new ArgumentNullException(nameof(colors));
         if (colors.Length == 0) throw new ArgumentException(nameof(colors));
-        this.colors = colors;
+        this.colors = (CodePeg[])colors.Clone();
     }
 
     public CodePeg this[int index] => colors[index];
