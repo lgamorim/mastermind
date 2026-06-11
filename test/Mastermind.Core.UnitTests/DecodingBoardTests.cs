@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using FluentAssertions;
 using Xunit;
 
@@ -305,6 +306,56 @@ public class DecodingBoardTests
         var result = decodingBoard.HasCodeBreakerSolvedSecretCode(response);
 
         result.Should().BeFalse();
+    }
+
+    public static IEnumerable<object[]> MixedBlackAndWhiteScoringCases()
+    {
+        yield return new object[]
+        {
+            new[] { CodePeg.Red, CodePeg.Red, CodePeg.Blue, CodePeg.Green },
+            new[] { CodePeg.Red, CodePeg.Blue, CodePeg.Green, CodePeg.Yellow },
+            1, 2
+        };
+        yield return new object[]
+        {
+            new[] { CodePeg.Blue, CodePeg.Blue, CodePeg.Green, CodePeg.Red },
+            new[] { CodePeg.Blue, CodePeg.Green, CodePeg.Red, CodePeg.Red },
+            2, 1
+        };
+        yield return new object[]
+        {
+            new[] { CodePeg.Yellow, CodePeg.Yellow, CodePeg.Green, CodePeg.Blue },
+            new[] { CodePeg.Blue, CodePeg.Red, CodePeg.Green, CodePeg.White },
+            1, 1
+        };
+        yield return new object[]
+        {
+            new[] { CodePeg.Black, CodePeg.Black, CodePeg.Black, CodePeg.Black },
+            new[] { CodePeg.Red, CodePeg.Red, CodePeg.Red, CodePeg.Red },
+            0, 0
+        };
+        yield return new object[]
+        {
+            new[] { CodePeg.Black, CodePeg.Blue, CodePeg.Green, CodePeg.White },
+            new[] { CodePeg.Black, CodePeg.Green, CodePeg.Blue, CodePeg.Yellow },
+            1, 2
+        };
+    }
+
+    [Theory]
+    [MemberData(nameof(MixedBlackAndWhiteScoringCases))]
+    public void Should_ScoreMixedBlackAndWhiteKeyPegs_When_GuessPartiallyMatchesShield(
+        CodePeg[] secret, CodePeg[] guess, int expectedBlack, int expectedWhite)
+    {
+        var boardConfig = new BoardConfig(4, 10);
+        var decodingBoard = new DecodingBoard(boardConfig);
+        var shield = new Shield(secret);
+        decodingBoard.PlayCodeMaker(shield);
+
+        var result = decodingBoard.PlayCodeBreaker(guess);
+
+        result.BlackKeyPegs.Should().Be(expectedBlack);
+        result.WhiteKeyPegs.Should().Be(expectedWhite);
     }
 
     [Theory]
