@@ -31,6 +31,7 @@ public class DecodingBoard
 
     public Response PlayCodeBreaker(CodePeg[] code)
     {
+        if (Shield is null) throw new InvalidOperationException("Code maker must play first.");
         if (code is null) throw new ArgumentNullException(nameof(code));
         if (code.Length != Shield.Count) throw new ArgumentException(nameof(code));
 

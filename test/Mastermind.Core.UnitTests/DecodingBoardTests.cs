@@ -223,6 +223,20 @@ public class DecodingBoardTests
     }
 
     [Fact]
+    public void Should_ThrowInvalidOperationException_When_CodeBreakerPlaysBeforeCodeMaker()
+    {
+        var boardConfig = new BoardConfig(4, 10);
+        var decodingBoard = new DecodingBoard(boardConfig);
+
+        var code = new[] { CodePeg.Black, CodePeg.Blue, CodePeg.Green, CodePeg.White };
+
+        var action = new Action(() => decodingBoard.PlayCodeBreaker(code));
+
+        action.Should().Throw<InvalidOperationException>()
+            .WithMessage("Code maker must play first.");
+    }
+
+    [Fact]
     public void Should_ThrowArgumentException_When_CodeBreakerCodeIsEmpty()
     {
         var boardConfig = new BoardConfig(4, 10);
