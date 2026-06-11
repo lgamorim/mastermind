@@ -103,10 +103,9 @@ CodePeg[] CodeMakerPlay(int size)
     var colors = GetCodePegColors();
     var pattern = new CodePeg[decodingBoard.BoardConfig.ShieldSize];
 
-    var rd = new Random(DateTime.UtcNow.Millisecond);
     for (var i = 0; i < size; i++)
     {
-        pattern[i] = Enum.Parse<CodePeg>(colors[rd.Next(0, colors.Length)]);
+        pattern[i] = Enum.Parse<CodePeg>(colors[Random.Shared.Next(0, colors.Length)]);
     }
 
     Console.Write("(o) The Code Maker has played.\n\t");
@@ -131,29 +130,33 @@ CodePeg[] CodeMakerPlay(int size)
 
 CodePeg[] CodeBreakerPlay(int play)
 {
-    Console.Write($"\n(?) Code Breaker play {play}/{decodingBoard.BoardConfig.TotalRows}:\t");
-    
-    var input = Console.ReadLine();
-    var colors = input?.Split(' ');
-    if (colors is null || colors.Length != decodingBoard.BoardConfig.ShieldSize)
+    while (true)
     {
-        Console.WriteLine("(!) The Code Breaker plays by typing 4 colors separated by a blank space.");
-        
-        return CodeBreakerPlay(play);
-    }
+        Console.Write($"\n(?) Code Breaker play {play}/{decodingBoard.BoardConfig.TotalRows}:\t");
 
-    var codePlayed = new List<CodePeg>(colors.Length);
-    foreach (var color in colors)
-    {
-        if (!Enum.TryParse<CodePeg>(color, out var peg))
+        var input = Console.ReadLine();
+        var colors = input?.Split(' ');
+        if (colors is null || colors.Length != decodingBoard.BoardConfig.ShieldSize)
         {
-            Console.WriteLine($"(!) The color {color} played is not a valid Code Peg color.");
-            
-            return CodeBreakerPlay(play);
+            Console.WriteLine("(!) The Code Breaker plays by typing 4 colors separated by a blank space.");
+            continue;
         }
 
-        codePlayed.Add(peg);
-    }
+        var codePlayed = new List<CodePeg>(colors.Length);
+        var isValid = true;
+        foreach (var color in colors)
+        {
+            if (!Enum.TryParse<CodePeg>(color, out var peg))
+            {
+                Console.WriteLine($"(!) The color {color} played is not a valid Code Peg color.");
+                isValid = false;
+                break;
+            }
 
-    return codePlayed.ToArray();
+            codePlayed.Add(peg);
+        }
+
+        if (isValid)
+            return codePlayed.ToArray();
+    }
 }
