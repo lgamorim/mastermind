@@ -13,6 +13,8 @@ var generatedCode = CodeMakerPlay(decodingBoard.BoardConfig.ShieldSize);
 var shield = new Shield(generatedCode);
 decodingBoard.PlayCodeMaker(shield);
 
+var solved = false;
+
 for (var play = 1; play <= decodingBoard.BoardConfig.TotalRows; play++)
 {
     var codePlayed = CodeBreakerPlay(play);
@@ -42,6 +44,25 @@ for (var play = 1; play <= decodingBoard.BoardConfig.TotalRows; play++)
     }
 
     Console.WriteLine();
+
+    if (decodingBoard.HasCodeBreakerSolvedSecretCode(response))
+    {
+        Console.WriteLine("\n(+) Code Breaker wins!");
+        solved = true;
+        break;
+    }
+}
+
+if (!solved)
+{
+    Console.Write("\n(o) The secret code was:\n\t");
+    foreach (var color in generatedCode)
+    {
+        WriteColor(color.ToString());
+        Console.Write(' ');
+    }
+
+    Console.WriteLine("\n\n(+) Code Maker wins!");
 }
 
 void ShowCodePegColors()
