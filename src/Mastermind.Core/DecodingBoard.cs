@@ -64,12 +64,22 @@ public class DecodingBoard
 
     private void FindWhiteKeyPegs(CodePeg[] code, KeyPeg?[] keyPegs)
     {
-        foreach (var color in code)
+        var secretUsed = new bool[code.Length];
+        for (var i = 0; i < code.Length; i++)
         {
-            for (var i = 0; i < code.Length; i++)
+            if (keyPegs[i] == KeyPeg.Black)
+                secretUsed[i] = true;
+        }
+
+        for (var i = 0; i < code.Length; i++)
+        {
+            if (keyPegs[i] == KeyPeg.Black) continue;
+
+            for (var j = 0; j < code.Length; j++)
             {
-                if (keyPegs[i] is not null || !Shield.HasColorAt(i, color)) continue;
-                keyPegs[i] = KeyPeg.White;
+                if (secretUsed[j] || !Shield.HasColorAt(j, code[i])) continue;
+                keyPegs[j] = KeyPeg.White;
+                secretUsed[j] = true;
                 break;
             }
         }
