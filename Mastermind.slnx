@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Mastermind.ConsoleApp/Mastermind.ConsoleApp.csproj" />
+    <Project Path="src/Mastermind.Core/Mastermind.Core.csproj" />
+  </Folder>
+  <Folder Name="/test/">
+    <Project Path="test/Mastermind.ConsoleApp.UnitTests/Mastermind.ConsoleApp.UnitTests.csproj" />
+    <Project Path="test/Mastermind.Core.UnitTests/Mastermind.Core.UnitTests.csproj" />
+  </Folder>
+</Solution>
