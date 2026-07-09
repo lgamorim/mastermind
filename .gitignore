@@ -223,3 +223,11 @@ project.lock.json
 #####
 # End of core ignore list, below put your custom 'per project' settings (patterns or path)
 #####
+
+# Test and tooling artifacts
+.playwright-mcp/
+.claude/launch.json
+
+# Mastermind.WebApp wwwroot assets are hand-authored/vendored static files, not build output
+!src/Mastermind.WebApp/wwwroot/
+!src/Mastermind.WebApp/wwwroot/**

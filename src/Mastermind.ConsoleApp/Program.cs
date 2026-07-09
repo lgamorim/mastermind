@@ -1,4 +1,5 @@
 using Mastermind.ConsoleApp;
+using Mastermind.Core;
 
 var runner = new ConsoleAppRunner(
     new RandomSecretCodeGenerator(),

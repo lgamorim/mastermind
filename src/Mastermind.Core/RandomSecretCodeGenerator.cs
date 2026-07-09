@@ -1,6 +1,6 @@
-using Mastermind.Core;
+using System;
 
-namespace Mastermind.ConsoleApp;
+namespace Mastermind.Core;
 
 public sealed class RandomSecretCodeGenerator : ISecretCodeGenerator
 {

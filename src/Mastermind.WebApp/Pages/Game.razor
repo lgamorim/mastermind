@@ -1,0 +1,192 @@
+@page "/"
+@inject GameStateService GameState
+
+<PageTitle>Mastermind</PageTitle>
+
+<div class="game-wrapper">
+    <div class="game-header">
+        <h1 class="game-title">MASTERMIND</h1>
+        <button class="btn-new-game" @onclick="StartNewGame">New Game</button>
+    </div>
+
+    @if (!GameStarted)
+    {
+        <div class="board-placeholder">
+            <p>Click <strong>New Game</strong> to start playing.</p>
+        </div>
+    }
+    else
+    {
+        <div class="board">
+
+            <div class="shield">
+                @for (var i = 0; i < GameState.BoardConfig.ShieldSize; i++)
+                {
+                    var si = i;
+                    <div class="shield-hole @(GameState.RevealedSecretCode is not null ? ToPegClass(GameState.RevealedSecretCode[si]) : "")"></div>
+                }
+            </div>
+
+            @if (GameState.IsGameOver)
+            {
+                <div class="result-banner @(GameState.HasWon ? "result-win" : "result-loss")">
+                    @(GameState.HasWon
+                        ? $"You cracked the code in {GameState.History.Count} guess{(GameState.History.Count == 1 ? "" : "es")}!"
+                        : "The Code Maker wins — better luck next time!")
+                </div>
+            }
+
+            <div class="board-rows">
+                @for (var rowIndex = 0; rowIndex < GameState.BoardConfig.TotalRows; rowIndex++)
+                {
+                    var ri = rowIndex;
+                    var isPlayed = ri < GameState.History.Count;
+                    var isActive = ri == GameState.History.Count && !GameState.IsGameOver;
+
+                    <div class="board-row @(isActive ? "active" : "") @(isPlayed ? "played" : "")">
+                        <span class="row-number">@(ri + 1)</span>
+                        <div class="peg-holes">
+                            @for (var pegIndex = 0; pegIndex < GameState.BoardConfig.ShieldSize; pegIndex++)
+                            {
+                                var pi = pegIndex;
+                                @if (isPlayed)
+                                {
+                                    <div class="peg-hole @ToPegClass(GameState.History[ri].Guess[pi])"></div>
+                                }
+                                else if (isActive)
+                                {
+                                    var slotColor = guessSlots[pi];
+                                    <div class="peg-hole drop-zone @(slotColor.HasValue ? ToPegClass(slotColor.Value) : "") @(dragOverSlot == pi ? "drag-over" : "")"
+                                         @ondragover:preventDefault
+                                         @ondragenter="() => dragOverSlot = pi"
+                                         @ondragleave="() => dragOverSlot = null"
+                                         @ondrop="() => OnSlotDrop(pi)"
+                                         @onclick="() => OnSlotClick(pi)">
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="peg-hole"></div>
+                                }
+                            }
+                        </div>
+                        <div class="key-pegs">
+                            @foreach (var dotClass in GetKeyPegDots(isPlayed ? GameState.History[ri].Response : default))
+                            {
+                                <div class="key-peg-dot @dotClass"></div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+
+            @if (!GameState.IsGameOver)
+            {
+                <div class="submit-area">
+                    <button class="btn-submit" disabled="@(!AllSlotsFilled)" @onclick="SubmitGuess">Submit</button>
+                    @if (submitError is not null)
+                    {
+                        <span class="submit-error">@submitError</span>
+                    }
+                </div>
+
+                <div class="palette">
+                    @foreach (var color in GameState.AvailableColors)
+                    {
+                        <div class="palette-peg @ToPegClass(color)"
+                             draggable="true"
+                             title="@color"
+                             @ondragstart="() => OnPaletteDragStart(color)"
+                             @ondragend="OnPaletteDragEnd">
+                        </div>
+                    }
+                </div>
+            }
+
+        </div>
+    }
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "debug")]
+    [Parameter]
+    public bool Debug { get; set; }
+
+    private CodePeg?[] guessSlots = [];
+    private string? submitError;
+    private CodePeg? draggedColor;
+    private int? dragOverSlot;
+
+    private bool GameStarted => guessSlots.Length > 0;
+
+    private bool AllSlotsFilled => guessSlots.Length > 0 && guessSlots.All(slot => slot is not null);
+
+    protected override void OnParametersSet()
+    {
+        GameState.IsDebugMode = Debug;
+    }
+
+    private void StartNewGame()
+    {
+        GameState.StartNewGame();
+        guessSlots = new CodePeg?[GameState.BoardConfig.ShieldSize];
+        submitError = null;
+        draggedColor = null;
+        dragOverSlot = null;
+    }
+
+    private void OnPaletteDragStart(CodePeg color)
+    {
+        draggedColor = color;
+    }
+
+    private void OnPaletteDragEnd()
+    {
+        draggedColor = null;
+        dragOverSlot = null;
+    }
+
+    private void OnSlotDrop(int slotIndex)
+    {
+        if (draggedColor.HasValue)
+        {
+            guessSlots[slotIndex] = draggedColor;
+        }
+
+        dragOverSlot = null;
+    }
+
+    private void OnSlotClick(int slotIndex)
+    {
+        guessSlots[slotIndex] = null;
+    }
+
+    private void SubmitGuess()
+    {
+        var guess = guessSlots.Select(slot => slot!.Value).ToArray();
+
+        if (GameState.TrySubmitGuess(guess, out _, out var error))
+        {
+            Array.Clear(guessSlots);
+            submitError = null;
+            draggedColor = null;
+            dragOverSlot = null;
+        }
+        else
+        {
+            submitError = error;
+        }
+    }
+
+    private static string ToPegClass(CodePeg color) => $"peg--{color.ToString().ToLowerInvariant()}";
+
+    private static IReadOnlyList<string> GetKeyPegDots(Response response)
+    {
+        var dots = new string[4];
+        var i = 0;
+        for (; i < response.BlackKeyPegs; i++) dots[i] = "key-black";
+        for (; i < response.BlackKeyPegs + response.WhiteKeyPegs; i++) dots[i] = "key-white";
+        for (; i < 4; i++) dots[i] = "key-empty";
+        return dots;
+    }
+}

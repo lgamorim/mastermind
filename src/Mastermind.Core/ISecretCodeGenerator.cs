@@ -1,6 +1,4 @@
-using Mastermind.Core;
-
-namespace Mastermind.ConsoleApp;
+namespace Mastermind.Core;
 
 public interface ISecretCodeGenerator
 {

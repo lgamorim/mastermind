@@ -23,6 +23,34 @@ You **win** the moment a guess earns **4 black key pegs** (the exact code in the
 
 ## How to play
 
+There are two versions of the game: a **web app** and a **console app**. Both follow the same rules.
+
+### Web app
+
+Build and run the web app:
+
+```
+dotnet run --project src/Mastermind.WebApp
+```
+
+Then open the printed localhost URL in your browser.
+
+1. Click **New Game** to start. The Code Maker silently locks in a secret code behind the shield at the top of the board.
+2. **Drag** a colored peg from the palette at the bottom and **drop** it onto one of the four peg holes in the active row. Click a filled hole to clear it.
+3. Once all four holes are filled, click **Submit** to lock in your guess.
+4. The Code Maker responds with key pegs (black and white dots) on the right side of the row. Use that feedback to refine your next guess.
+5. Keep guessing until you crack the code or exhaust all 10 attempts. If you run out, the secret code is revealed.
+
+#### Debug mode (web app)
+
+To play with the secret code visible behind the shield, add `?debug=true` to the URL:
+
+```
+http://localhost:5000/?debug=true
+```
+
+### Console app
+
 Build and run the console app:
 
 ```
@@ -42,7 +70,7 @@ When the game starts:
 3. The Code Maker responds with black and white key pegs. Use that feedback to refine your next guess.
 4. Keep guessing until you crack the code or run out of your 10 attempts.
 
-### Debug mode
+#### Debug mode (console app)
 
 To play with the secret code revealed on screen (handy for testing), pass the `DEBUG` argument:
 
