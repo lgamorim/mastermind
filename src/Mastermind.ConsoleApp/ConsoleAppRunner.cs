@@ -1,4 +1,4 @@
-using Mastermind.Core;
+﻿using Mastermind.Core;
 
 namespace Mastermind.ConsoleApp;
 
@@ -25,7 +25,6 @@ public sealed class ConsoleAppRunner(
 
     private const string CodeBreakerWinsMessage = "\n[~] Code Breaker wins!";
     private const string CodeMakerWinsMessage = "\n\n[^] Code Maker wins!";
-    private const string WrongCountMessage = "[!] The Code Breaker plays by typing 4 colors separated by a blank space.";
     private const string BlackLegend = "[Black] = right color in the right position.";
     private const string WhiteLegend = "[White] = right color in the wrong position.";
 
@@ -39,7 +38,7 @@ public sealed class ConsoleAppRunner(
         ShowBanner();
         ShowCodePegColors();
         ShowLegend();
-        output.WriteLine("\n[~] The Code Breaker plays by typing 4 colors separated by a blank space.");
+        output.WriteLine($"\n[~] The Code Breaker plays by typing {decodingBoard.BoardConfig.ShieldSize} colors separated by a blank space.");
 
         do
         {
@@ -90,7 +89,7 @@ public sealed class ConsoleAppRunner(
 
             foreach (var color in codePlayed)
             {
-                WriteColor(color.ToString());
+                WriteColor(color);
                 output.Write(' ');
             }
 
@@ -101,13 +100,13 @@ public sealed class ConsoleAppRunner(
 
             for (var i = 0; i < response.BlackKeyPegs; i++)
             {
-                WriteColor(nameof(KeyPeg.Black));
+                WriteColor(KeyPeg.Black);
                 output.Write(' ');
             }
 
             for (var i = 0; i < response.WhiteKeyPegs; i++)
             {
-                WriteColor(nameof(KeyPeg.White));
+                WriteColor(KeyPeg.White);
                 output.Write(' ');
             }
 
@@ -128,7 +127,7 @@ public sealed class ConsoleAppRunner(
             output.Write("\n[i] The secret code was:\n\t");
             foreach (var color in generatedCode)
             {
-                WriteColor(color.ToString());
+                WriteColor(color);
                 output.Write(' ');
             }
 
@@ -155,9 +154,9 @@ public sealed class ConsoleAppRunner(
 
     private void ShowCodePegColors()
     {
-        var codePegColors = GetCodePegColors();
-        output.WriteLine($"[i] There are Code Pegs with {codePegColors.Length} different colors:");
-        foreach (var color in codePegColors)
+        var codePegs = Enum.GetValues<CodePeg>();
+        output.WriteLine($"[i] There are Code Pegs with {codePegs.Length} different colors:");
+        foreach (var color in codePegs)
         {
             output.Write("\t");
             WriteColor(color, true);
@@ -179,7 +178,7 @@ public sealed class ConsoleAppRunner(
         {
             foreach (var color in pattern)
             {
-                WriteColor(color.ToString());
+                WriteColor(color);
                 output.Write(' ');
             }
 
@@ -218,7 +217,7 @@ public sealed class ConsoleAppRunner(
             var colors = trimmed.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
             if (colors.Length != decodingBoard.BoardConfig.ShieldSize)
             {
-                output.WriteLine(WrongCountMessage);
+                output.WriteLine($"[!] The Code Breaker plays by typing {decodingBoard.BoardConfig.ShieldSize} colors separated by a blank space.");
                 output.WriteLine($"    You entered {colors.Length} color(s); {decodingBoard.BoardConfig.ShieldSize} are required.");
                 continue;
             }
@@ -298,18 +297,18 @@ public sealed class ConsoleAppRunner(
 
             foreach (var color in guess)
             {
-                WriteColorCell(color.ToString());
+                WriteColorCell(color);
             }
 
             for (var i = 0; i < response.BlackKeyPegs; i++)
             {
-                WriteColor(nameof(KeyPeg.Black));
+                WriteColor(KeyPeg.Black);
                 output.Write(' ');
             }
 
             for (var i = 0; i < response.WhiteKeyPegs; i++)
             {
-                WriteColor(nameof(KeyPeg.White));
+                WriteColor(KeyPeg.White);
                 output.Write(' ');
             }
 
@@ -317,10 +316,10 @@ public sealed class ConsoleAppRunner(
         }
     }
 
-    private void WriteColorCell(string color)
+    private void WriteColorCell(CodePeg color)
     {
         WriteColor(color);
-        var padding = ColorCellWidth - (color.Length + 2);
+        var padding = ColorCellWidth - (color.ToString().Length + 2);
         output.Write(new string(' ', Math.Max(1, padding)));
     }
 
@@ -339,17 +338,21 @@ public sealed class ConsoleAppRunner(
         }
     }
 
-    private void WriteColor(string color, bool newline = false)
+    private void WriteColor(CodePeg color, bool newline = false) =>
+        WriteColorLabel(color.ToString(), ToConsoleColor(color), newline);
+
+    private void WriteColor(KeyPeg keyPeg) =>
+        WriteColorLabel(keyPeg.ToString(), ToConsoleColor(keyPeg), newline: false);
+
+    private void WriteColorLabel(string label, ConsoleColor color, bool newline)
     {
         if (!Console.IsOutputRedirected)
         {
-            var foregroundColor = Enum.Parse<ConsoleColor>(color);
-            Console.ForegroundColor = foregroundColor;
-            Console.BackgroundColor = foregroundColor != ConsoleColor.Black ? ConsoleColor.Black : ConsoleColor.White;
+            Console.ForegroundColor = color;
+            Console.BackgroundColor = color != ConsoleColor.Black ? ConsoleColor.Black : ConsoleColor.White;
         }
 
-        var message = $"[{color}]";
-        output.Write(message);
+        output.Write($"[{label}]");
 
         if (!Console.IsOutputRedirected)
         {
@@ -359,4 +362,24 @@ public sealed class ConsoleAppRunner(
 
         if (newline) output.WriteLine();
     }
+
+    // Explicit peg-to-console-color maps. These switch expressions have no
+    // discard arm, so adding a CodePeg/KeyPeg member without a mapping fails
+    // the build (CS8509) instead of throwing at runtime like the old
+    // name-based Enum.Parse<ConsoleColor> did.
+    private static ConsoleColor ToConsoleColor(CodePeg color) => color switch
+    {
+        CodePeg.Red => ConsoleColor.Red,
+        CodePeg.Blue => ConsoleColor.Blue,
+        CodePeg.Yellow => ConsoleColor.Yellow,
+        CodePeg.Green => ConsoleColor.Green,
+        CodePeg.White => ConsoleColor.White,
+        CodePeg.Black => ConsoleColor.Black,
+    };
+
+    private static ConsoleColor ToConsoleColor(KeyPeg keyPeg) => keyPeg switch
+    {
+        KeyPeg.Black => ConsoleColor.Black,
+        KeyPeg.White => ConsoleColor.White,
+    };
 }

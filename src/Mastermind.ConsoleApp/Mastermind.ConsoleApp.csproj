@@ -2,10 +2,15 @@
 
     <PropertyGroup>
         <OutputType>Exe</OutputType>
-        <TargetFramework>net10.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
-        <Nullable>enable</Nullable>
-        <Version>1.0.0</Version>
+        <!-- Enable the doc file so IDE0005 (unnecessary usings) runs on build;
+             this is an executable, not a consumed API, so suppress the
+             missing-doc-comment requirement (CS1591).
+             CS8524: allow exhaustive enum switch expressions to omit a discard
+             arm for unnamed cast values, so a missing *named* value still fails
+             the build (CS8509) and forces new peg colors to be mapped. -->
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <NoWarn>$(NoWarn);CS1591;CS8524</NoWarn>
     </PropertyGroup>
 
     <ItemGroup>

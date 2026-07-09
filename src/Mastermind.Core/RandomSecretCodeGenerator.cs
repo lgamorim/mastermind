@@ -1,9 +1,11 @@
-using System;
+﻿using System;
 
 namespace Mastermind.Core;
 
+/// <summary>Generates a secret code by picking each peg color uniformly at random.</summary>
 public sealed class RandomSecretCodeGenerator : ISecretCodeGenerator
 {
+    /// <inheritdoc />
     public CodePeg[] Generate(int size)
     {
         var colors = Enum.GetValues<CodePeg>();

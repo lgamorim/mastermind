@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using FluentAssertions;
 using Xunit;
 using static Mastermind.Core.CodePeg;
@@ -59,7 +59,7 @@ public class ShieldTests
     [Fact]
     public void Should_ThrowArgumentNullException_When_ColorsIsNull()
     {
-        var action = new Action(() => new Shield(null));
+        var action = new Action(() => new Shield(null!));
 
         action.Should().Throw<ArgumentNullException>();
     }

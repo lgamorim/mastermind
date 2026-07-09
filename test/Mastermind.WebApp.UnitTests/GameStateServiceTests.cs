@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using FluentAssertions;
 using Mastermind.Core;
 using Mastermind.WebApp.Services;
@@ -46,6 +46,17 @@ public class GameStateServiceTests
 
         gameStateService.HasWon.Should().BeTrue();
         gameStateService.IsGameOver.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Should_RevealSecretCode_When_PlayerWins()
+    {
+        var gameStateService = CreateGameStateService();
+        gameStateService.StartNewGame();
+
+        gameStateService.TrySubmitGuess(SecretCode, out _, out _);
+
+        gameStateService.RevealedSecretCode.Should().Equal(SecretCode);
     }
 
     [Fact]
@@ -111,6 +122,35 @@ public class GameStateServiceTests
         gameStateService.History.Should().BeEmpty();
         gameStateService.IsGameOver.Should().BeFalse();
         gameStateService.HasWon.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Should_ReturnFalseWithoutMutatingState_When_GuessSubmittedAfterGameOver()
+    {
+        var gameStateService = CreateGameStateService();
+        gameStateService.StartNewGame();
+        gameStateService.TrySubmitGuess(SecretCode, out _, out _); // win -> game over
+
+        var result = gameStateService.TrySubmitGuess(SecretCode, out _, out var error);
+
+        result.Should().BeFalse();
+        error.Should().NotBeNullOrEmpty();
+        gameStateService.History.Should().HaveCount(1);
+        gameStateService.HasWon.Should().BeTrue();
+        gameStateService.IsGameOver.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Should_NotReflectSourceArrayMutation_When_GuessArrayModifiedAfterSubmit()
+    {
+        var gameStateService = CreateGameStateService();
+        gameStateService.StartNewGame();
+        var guess = new[] { CodePeg.Red, CodePeg.Red, CodePeg.Red, CodePeg.Red };
+
+        gameStateService.TrySubmitGuess(guess, out _, out _);
+        guess[0] = CodePeg.Blue;
+
+        gameStateService.History[0].Guess[0].Should().Be(CodePeg.Red);
     }
 
     [Fact]

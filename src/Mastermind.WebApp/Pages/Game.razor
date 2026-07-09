@@ -71,7 +71,7 @@
                             }
                         </div>
                         <div class="key-pegs">
-                            @foreach (var dotClass in GetKeyPegDots(isPlayed ? GameState.History[ri].Response : default))
+                            @foreach (var dotClass in GetKeyPegDots(isPlayed ? GameState.History[ri].Response : default, GameState.BoardConfig.ShieldSize))
                             {
                                 <div class="key-peg-dot @dotClass"></div>
                             }
@@ -180,13 +180,13 @@
 
     private static string ToPegClass(CodePeg color) => $"peg--{color.ToString().ToLowerInvariant()}";
 
-    private static IReadOnlyList<string> GetKeyPegDots(Response response)
+    private static IReadOnlyList<string> GetKeyPegDots(Response response, int pegCount)
     {
-        var dots = new string[4];
+        var dots = new string[pegCount];
         var i = 0;
         for (; i < response.BlackKeyPegs; i++) dots[i] = "key-black";
         for (; i < response.BlackKeyPegs + response.WhiteKeyPegs; i++) dots[i] = "key-white";
-        for (; i < 4; i++) dots[i] = "key-empty";
+        for (; i < pegCount; i++) dots[i] = "key-empty";
         return dots;
     }
 }

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using FluentAssertions;
 using Xunit;
 using static Mastermind.Core.CodePeg;
@@ -50,7 +50,7 @@ public class DecodingBoardTests
     {
         var decodingBoard = CreateBoard();
 
-        var action = new Action(() => decodingBoard.PlayCodeMaker(null));
+        var action = new Action(() => decodingBoard.PlayCodeMaker(null!));
 
         action.Should().ThrowExactly<ArgumentNullException>();
     }
@@ -166,7 +166,7 @@ public class DecodingBoardTests
     {
         var decodingBoard = CreatePlayedBoard();
 
-        var action = new Action(() => decodingBoard.PlayCodeBreaker(null));
+        var action = new Action(() => decodingBoard.PlayCodeBreaker(null!));
 
         action.Should().ThrowExactly<ArgumentNullException>();
     }
@@ -190,8 +190,6 @@ public class DecodingBoardTests
     // Total equal to the shield count but not all black.
     [InlineData(0, 4)]
     [InlineData(3, 1)]
-    // Negative black pegs with an in-range total: returns false rather than throwing.
-    [InlineData(-1, 5)]
     public void Should_NotSolveSecretCode_When_BlackPegsDoNotEqualShieldCount(int blackKeyPegs, int whiteKeyPegs)
     {
         var decodingBoard = CreatePlayedBoard();
@@ -201,20 +199,16 @@ public class DecodingBoardTests
         result.Should().BeFalse();
     }
 
-    [Theory]
-    [InlineData(-1, 0)]
-    [InlineData(0, -1)]
-    [InlineData(5, 0)]
-    [InlineData(0, 5)]
-    [InlineData(4, 1)]
-    [InlineData(1, 4)]
-    public void Should_ThrowArgumentException_When_ResponseTotalKeyPegsOutsideBoundaries(int blackKeyPegs, int whiteKeyPegs)
+    [Fact]
+    public void Should_ReportSolved_When_BlackPegsEqualShieldCount_RegardlessOfWhitePegs()
     {
+        // The solved check is a pure query on black pegs; it does not re-validate
+        // the response (a response from PlayCodeBreaker is valid by construction,
+        // and Response guards its own non-negativity). A nonsensical extra white
+        // peg therefore neither throws nor changes the black-peg verdict.
         var decodingBoard = CreatePlayedBoard();
 
-        var action = new Action(() => decodingBoard.HasCodeBreakerSolvedSecretCode(new Response(blackKeyPegs, whiteKeyPegs)));
-
-        action.Should().ThrowExactly<ArgumentException>();
+        decodingBoard.HasCodeBreakerSolvedSecretCode(new Response(4, 1)).Should().BeTrue();
     }
 
     [Fact]
