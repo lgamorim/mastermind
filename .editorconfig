@@ -92,6 +92,9 @@ dotnet_naming_style.camel_case.capitalization = camel_case
 dotnet_naming_style.i_prefixed.capitalization = pascal_case
 dotnet_naming_style.i_prefixed.required_prefix = I
 
+dotnet_naming_style.underscore_camel_case.capitalization = camel_case
+dotnet_naming_style.underscore_camel_case.required_prefix = _
+
 # Rules (order matters — most specific first).
 dotnet_naming_rule.interfaces_are_i_prefixed.symbols = interfaces
 dotnet_naming_rule.interfaces_are_i_prefixed.style = i_prefixed
@@ -105,9 +108,9 @@ dotnet_naming_rule.static_readonly_fields_are_pascal_case.symbols = static_reado
 dotnet_naming_rule.static_readonly_fields_are_pascal_case.style = pascal_case
 dotnet_naming_rule.static_readonly_fields_are_pascal_case.severity = warning
 
-dotnet_naming_rule.private_fields_are_camel_case.symbols = private_fields
-dotnet_naming_rule.private_fields_are_camel_case.style = camel_case
-dotnet_naming_rule.private_fields_are_camel_case.severity = warning
+dotnet_naming_rule.private_fields_are_underscore_camel_case.symbols = private_fields
+dotnet_naming_rule.private_fields_are_underscore_camel_case.style = underscore_camel_case
+dotnet_naming_rule.private_fields_are_underscore_camel_case.severity = warning
 
 dotnet_naming_rule.non_private_fields_are_pascal_case.symbols = non_private_fields
 dotnet_naming_rule.non_private_fields_are_pascal_case.style = pascal_case

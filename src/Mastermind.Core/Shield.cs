@@ -5,7 +5,7 @@ namespace Mastermind.Core;
 /// <summary>The secret code placed by the code maker, hidden behind the board's shield.</summary>
 public class Shield
 {
-    private readonly CodePeg[] colors;
+    private readonly CodePeg[] _colors;
 
     /// <summary>Creates a shield from a copy of the supplied colors.</summary>
     /// <param name="colors">The secret code; must contain at least one peg.</param>
@@ -16,15 +16,15 @@ public class Shield
         ArgumentNullException.ThrowIfNull(colors);
         if (colors.Length == 0)
             throw new ArgumentException("Shield must contain at least one peg.", nameof(colors));
-        this.colors = (CodePeg[])colors.Clone();
+        _colors = (CodePeg[])colors.Clone();
     }
 
     /// <summary>Gets the color at the given position.</summary>
     /// <param name="index">Zero-based peg position.</param>
-    public CodePeg this[int index] => colors[index];
+    public CodePeg this[int index] => _colors[index];
 
     /// <summary>Gets the number of pegs in the shield.</summary>
-    public int Count => colors.Length;
+    public int Count => _colors.Length;
 
     /// <summary>Determines whether the peg at <paramref name="index"/> is the given color.</summary>
     /// <param name="index">Zero-based peg position.</param>

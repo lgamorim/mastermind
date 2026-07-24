@@ -55,11 +55,11 @@
                                 }
                                 else if (isActive)
                                 {
-                                    var slotColor = guessSlots[pi];
-                                    <div class="peg-hole drop-zone @(slotColor.HasValue ? ToPegClass(slotColor.Value) : "") @(dragOverSlot == pi ? "drag-over" : "")"
+                                    var slotColor = _guessSlots[pi];
+                                    <div class="peg-hole drop-zone @(slotColor.HasValue ? ToPegClass(slotColor.Value) : "") @(_dragOverSlot == pi ? "drag-over" : "")"
                                          @ondragover:preventDefault
-                                         @ondragenter="() => dragOverSlot = pi"
-                                         @ondragleave="() => dragOverSlot = null"
+                                         @ondragenter="() => _dragOverSlot = pi"
+                                         @ondragleave="() => _dragOverSlot = null"
                                          @ondrop="() => OnSlotDrop(pi)"
                                          @onclick="() => OnSlotClick(pi)">
                                     </div>
@@ -84,9 +84,9 @@
             {
                 <div class="submit-area">
                     <button class="btn-submit" disabled="@(!AllSlotsFilled)" @onclick="SubmitGuess">Submit</button>
-                    @if (submitError is not null)
+                    @if (_submitError is not null)
                     {
-                        <span class="submit-error">@submitError</span>
+                        <span class="submit-error">@_submitError</span>
                     }
                 </div>
 
@@ -112,14 +112,14 @@
     [Parameter]
     public bool Debug { get; set; }
 
-    private CodePeg?[] guessSlots = [];
-    private string? submitError;
-    private CodePeg? draggedColor;
-    private int? dragOverSlot;
+    private CodePeg?[] _guessSlots = [];
+    private string? _submitError;
+    private CodePeg? _draggedColor;
+    private int? _dragOverSlot;
 
-    private bool GameStarted => guessSlots.Length > 0;
+    private bool GameStarted => _guessSlots.Length > 0;
 
-    private bool AllSlotsFilled => guessSlots.Length > 0 && guessSlots.All(slot => slot is not null);
+    private bool AllSlotsFilled => _guessSlots.Length > 0 && _guessSlots.All(slot => slot is not null);
 
     protected override void OnParametersSet()
     {
@@ -129,52 +129,52 @@
     private void StartNewGame()
     {
         GameState.StartNewGame();
-        guessSlots = new CodePeg?[GameState.BoardConfig.ShieldSize];
-        submitError = null;
-        draggedColor = null;
-        dragOverSlot = null;
+        _guessSlots = new CodePeg?[GameState.BoardConfig.ShieldSize];
+        _submitError = null;
+        _draggedColor = null;
+        _dragOverSlot = null;
     }
 
     private void OnPaletteDragStart(CodePeg color)
     {
-        draggedColor = color;
+        _draggedColor = color;
     }
 
     private void OnPaletteDragEnd()
     {
-        draggedColor = null;
-        dragOverSlot = null;
+        _draggedColor = null;
+        _dragOverSlot = null;
     }
 
     private void OnSlotDrop(int slotIndex)
     {
-        if (draggedColor.HasValue)
+        if (_draggedColor.HasValue)
         {
-            guessSlots[slotIndex] = draggedColor;
+            _guessSlots[slotIndex] = _draggedColor;
         }
 
-        dragOverSlot = null;
+        _dragOverSlot = null;
     }
 
     private void OnSlotClick(int slotIndex)
     {
-        guessSlots[slotIndex] = null;
+        _guessSlots[slotIndex] = null;
     }
 
     private void SubmitGuess()
     {
-        var guess = guessSlots.Select(slot => slot!.Value).ToArray();
+        var guess = _guessSlots.Select(slot => slot!.Value).ToArray();
 
         if (GameState.TrySubmitGuess(guess, out _, out var error))
         {
-            Array.Clear(guessSlots);
-            submitError = null;
-            draggedColor = null;
-            dragOverSlot = null;
+            Array.Clear(_guessSlots);
+            _submitError = null;
+            _draggedColor = null;
+            _dragOverSlot = null;
         }
         else
         {
-            submitError = error;
+            _submitError = error;
         }
     }
 

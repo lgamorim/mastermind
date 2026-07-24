@@ -8,7 +8,7 @@ public sealed class ConsoleAppRunner(
     TextWriter output,
     TextWriter error)
 {
-    private readonly DecodingBoard decodingBoard = new();
+    private readonly DecodingBoard _decodingBoard = new();
 
     public int Run(string[] args)
     {
@@ -28,8 +28,8 @@ public sealed class ConsoleAppRunner(
     private const string BlackLegend = "[Black] = right color in the right position.";
     private const string WhiteLegend = "[White] = right color in the wrong position.";
 
-    private int sessionBreakerWins;
-    private int sessionMakerWins;
+    private int _sessionBreakerWins;
+    private int _sessionMakerWins;
 
     private int RunGame(string[] args)
     {
@@ -38,20 +38,20 @@ public sealed class ConsoleAppRunner(
         ShowBanner();
         ShowCodePegColors();
         ShowLegend();
-        output.WriteLine($"\n[~] The Code Breaker plays by typing {decodingBoard.BoardConfig.ShieldSize} colors separated by a blank space.");
+        output.WriteLine($"\n[~] The Code Breaker plays by typing {_decodingBoard.BoardConfig.ShieldSize} colors separated by a blank space.");
 
         do
         {
             if (RunSingleGame(isDebug))
             {
-                sessionBreakerWins++;
+                _sessionBreakerWins++;
             }
             else
             {
-                sessionMakerWins++;
+                _sessionMakerWins++;
             }
 
-            output.WriteLine($"\n[i] Score so far - Code Breaker {sessionBreakerWins} : {sessionMakerWins} Code Maker.");
+            output.WriteLine($"\n[i] Score so far - Code Breaker {_sessionBreakerWins} : {_sessionMakerWins} Code Maker.");
         }
         while (PromptPlayAgain());
 
@@ -71,14 +71,14 @@ public sealed class ConsoleAppRunner(
 
     private bool RunSingleGame(bool isDebug)
     {
-        var generatedCode = PlayCodeMaker(decodingBoard.BoardConfig.ShieldSize, isDebug);
+        var generatedCode = PlayCodeMaker(_decodingBoard.BoardConfig.ShieldSize, isDebug);
         var shield = new Shield(generatedCode);
-        decodingBoard.PlayCodeMaker(shield);
+        _decodingBoard.PlayCodeMaker(shield);
 
         var solved = false;
         var history = new List<(CodePeg[] Guess, Response Response)>();
 
-        for (var play = 1; play <= decodingBoard.BoardConfig.TotalRows; play++)
+        for (var play = 1; play <= _decodingBoard.BoardConfig.TotalRows; play++)
         {
             RenderBoard(history);
 
@@ -93,7 +93,7 @@ public sealed class ConsoleAppRunner(
                 output.Write(' ');
             }
 
-            var response = decodingBoard.PlayCodeBreaker(codePlayed);
+            var response = _decodingBoard.PlayCodeBreaker(codePlayed);
             history.Add((codePlayed, response));
 
             output.Write("\n[^] The Code Maker has responded:\n\t");
@@ -112,7 +112,7 @@ public sealed class ConsoleAppRunner(
 
             output.WriteLine();
 
-            if (decodingBoard.HasCodeBreakerSolvedSecretCode(response))
+            if (_decodingBoard.HasCodeBreakerSolvedSecretCode(response))
             {
                 RenderBoard(history);
                 WriteLineColored(CodeBreakerWinsMessage, ConsoleColor.Green);
@@ -196,7 +196,7 @@ public sealed class ConsoleAppRunner(
     {
         while (true)
         {
-            output.Write($"\n[>] Code Breaker play {play}/{decodingBoard.BoardConfig.TotalRows}:\t");
+            output.Write($"\n[>] Code Breaker play {play}/{_decodingBoard.BoardConfig.TotalRows}:\t");
 
             var line = input.ReadLine();
             if (line is null) return null;
@@ -215,10 +215,10 @@ public sealed class ConsoleAppRunner(
             }
 
             var colors = trimmed.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
-            if (colors.Length != decodingBoard.BoardConfig.ShieldSize)
+            if (colors.Length != _decodingBoard.BoardConfig.ShieldSize)
             {
-                output.WriteLine($"[!] The Code Breaker plays by typing {decodingBoard.BoardConfig.ShieldSize} colors separated by a blank space.");
-                output.WriteLine($"    You entered {colors.Length} color(s); {decodingBoard.BoardConfig.ShieldSize} are required.");
+                output.WriteLine($"[!] The Code Breaker plays by typing {_decodingBoard.BoardConfig.ShieldSize} colors separated by a blank space.");
+                output.WriteLine($"    You entered {colors.Length} color(s); {_decodingBoard.BoardConfig.ShieldSize} are required.");
                 continue;
             }
 
@@ -264,8 +264,8 @@ public sealed class ConsoleAppRunner(
 
     private void ShowHelp()
     {
-        var shieldSize = decodingBoard.BoardConfig.ShieldSize;
-        output.WriteLine($"\n[?] Mastermind - break the secret code of {shieldSize} colors within {decodingBoard.BoardConfig.TotalRows} attempts.");
+        var shieldSize = _decodingBoard.BoardConfig.ShieldSize;
+        output.WriteLine($"\n[?] Mastermind - break the secret code of {shieldSize} colors within {_decodingBoard.BoardConfig.TotalRows} attempts.");
         output.WriteLine($"    How to play: type {shieldSize} color names separated by spaces (for example: Red Blue Green Yellow).");
         output.WriteLine($"    {BlackLegend}");
         output.WriteLine($"    {WhiteLegend}");
@@ -275,7 +275,7 @@ public sealed class ConsoleAppRunner(
 
     private void ShowSessionHistory()
     {
-        output.WriteLine($"\n[i] Session history - Code Breaker wins: {sessionBreakerWins}, Code Maker wins: {sessionMakerWins}.");
+        output.WriteLine($"\n[i] Session history - Code Breaker wins: {_sessionBreakerWins}, Code Maker wins: {_sessionMakerWins}.");
     }
 
     private const int ColorCellWidth = 9;
@@ -286,7 +286,7 @@ public sealed class ConsoleAppRunner(
 
         output.WriteLine("\n[i] Board so far:");
         output.Write("\t  #  ");
-        output.Write("Guess".PadRight(decodingBoard.BoardConfig.ShieldSize * ColorCellWidth));
+        output.Write("Guess".PadRight(_decodingBoard.BoardConfig.ShieldSize * ColorCellWidth));
         output.WriteLine("Result");
 
         for (var row = 0; row < history.Count; row++)

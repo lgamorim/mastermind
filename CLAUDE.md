@@ -29,8 +29,8 @@ dotnet run --project src/Mastermind.WebApp
 ```
 
 ## Conventions
-@.claude/rules/coding-standards.md
-@.claude/rules/architecture.md
-@.claude/rules/design-principles.md
-@.claude/rules/testing.md
-@.claude/rules/workflow.md
+@.claude/rules/profiles/application-solo.md
+
+`Mastermind.Core` is an internal library consumed only by the console and web
+apps in this repo (never shipped as a package), so this repo follows the
+`application` archetype, not `library`.

@@ -4,14 +4,14 @@ namespace Mastermind.WebApp.Services;
 
 public sealed class GameStateService(ISecretCodeGenerator secretCodeGenerator)
 {
-    private readonly List<GuessRecord> history = [];
+    private readonly List<GuessRecord> _history = [];
 
-    private DecodingBoard decodingBoard = new();
-    private CodePeg[]? secretCode;
+    private DecodingBoard _decodingBoard = new();
+    private CodePeg[]? _secretCode;
 
-    public BoardConfig BoardConfig => decodingBoard.BoardConfig;
+    public BoardConfig BoardConfig => _decodingBoard.BoardConfig;
 
-    public IReadOnlyList<GuessRecord> History => history;
+    public IReadOnlyList<GuessRecord> History => _history;
 
     public bool IsGameOver { get; private set; }
 
@@ -25,18 +25,18 @@ public sealed class GameStateService(ISecretCodeGenerator secretCodeGenerator)
 
     public void StartNewGame()
     {
-        decodingBoard = new DecodingBoard();
-        history.Clear();
+        _decodingBoard = new DecodingBoard();
+        _history.Clear();
         IsGameOver = false;
         HasWon = false;
         RevealedSecretCode = null;
 
-        secretCode = secretCodeGenerator.Generate(decodingBoard.BoardConfig.ShieldSize);
-        decodingBoard.PlayCodeMaker(new Shield(secretCode));
+        _secretCode = secretCodeGenerator.Generate(_decodingBoard.BoardConfig.ShieldSize);
+        _decodingBoard.PlayCodeMaker(new Shield(_secretCode));
 
         if (IsDebugMode)
         {
-            RevealedSecretCode = ReadOnlySnapshot(secretCode);
+            RevealedSecretCode = ReadOnlySnapshot(_secretCode);
         }
     }
 
@@ -51,7 +51,7 @@ public sealed class GameStateService(ISecretCodeGenerator secretCodeGenerator)
 
         try
         {
-            response = decodingBoard.PlayCodeBreaker(guess);
+            response = _decodingBoard.PlayCodeBreaker(guess);
         }
         catch (Exception exception) when (exception is ArgumentException or InvalidOperationException)
         {
@@ -63,16 +63,16 @@ public sealed class GameStateService(ISecretCodeGenerator secretCodeGenerator)
         error = null;
         // The code maker has played (PlayCodeBreaker above would have thrown
         // otherwise), so the secret code is guaranteed to be set here.
-        var secret = secretCode!;
-        history.Add(new GuessRecord(history.Count + 1, ReadOnlySnapshot(guess), response));
+        var secret = _secretCode!;
+        _history.Add(new GuessRecord(_history.Count + 1, ReadOnlySnapshot(guess), response));
 
-        if (decodingBoard.HasCodeBreakerSolvedSecretCode(response))
+        if (_decodingBoard.HasCodeBreakerSolvedSecretCode(response))
         {
             HasWon = true;
             IsGameOver = true;
             RevealedSecretCode = ReadOnlySnapshot(secret);
         }
-        else if (history.Count == decodingBoard.BoardConfig.TotalRows)
+        else if (_history.Count == _decodingBoard.BoardConfig.TotalRows)
         {
             IsGameOver = true;
             RevealedSecretCode = ReadOnlySnapshot(secret);
