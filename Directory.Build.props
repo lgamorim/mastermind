@@ -2,8 +2,8 @@
 
   <!--
     Shared MSBuild properties for every project in the solution, per
-    .claude/rules/architecture.md (centralize TargetFramework, Nullable,
-    TreatWarningsAsErrors, etc.) and .claude/rules/coding-standards.md
+    .claude/rules/core/architecture.md (centralize TargetFramework, Nullable,
+    TreatWarningsAsErrors, etc.) and .claude/rules/core/coding-standards.md
     (nullable on, warnings and style violations fail the build).
   -->
   <PropertyGroup>
