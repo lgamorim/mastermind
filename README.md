@@ -1,5 +1,8 @@
 # Mastermind
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
+
 _My implementation in .NET/C# of the Mastermind board game._
 
 In this console version, the **computer is the Code Maker** and **you are the Code Breaker**. The computer picks a secret code and your goal is to break it within the allowed number of guesses.
