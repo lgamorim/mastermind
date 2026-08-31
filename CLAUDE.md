@@ -25,7 +25,7 @@ dotnet run --project src/Mastermind.ConsoleApp -- DEBUG
 
 # Run the web app
 dotnet run --project src/Mastermind.WebApp
-# Then open http://localhost:5000 (or the port printed by dotnet)
+# Then open http://localhost:5012 (or the port printed by dotnet)
 ```
 
 ## Conventions

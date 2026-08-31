@@ -161,7 +161,60 @@ public class ConsoleAppRunnerTests
         var exitCode = runner.Run([]);
 
         exitCode.Should().Be(0);
-        output.ToString().Should().Contain("[^] Code Maker wins!");
+        output.ToString().Should().Contain("Thanks for playing");
+    }
+
+    [Fact]
+    public void Should_NotScoreTheAbandonedRound_When_QuitCommandIsEntered()
+    {
+        var output = new StringWriter();
+        var runner = CreateRunner(input: "/quit", output: output);
+
+        runner.Run([]);
+
+        // Quitting is not a loss: the Code Maker must not be credited with a win.
+        output.ToString().Should().NotContain("[^] Code Maker wins!");
+        output.ToString().Should().NotContain("Better luck next time");
+    }
+
+    [Fact]
+    public void Should_NotPromptToPlayAgain_When_QuitCommandIsEntered()
+    {
+        var output = new StringWriter();
+        var runner = CreateRunner(input: "/quit", output: output);
+
+        runner.Run([]);
+
+        output.ToString().Should().NotContain("Play again?");
+    }
+
+    [Fact]
+    public void Should_KeepTheSessionScore_When_QuitCommandEndsALaterRound()
+    {
+        var input = string.Join(Environment.NewLine,
+            "Red Blue Yellow Green", // win round 1
+            "y",                     // play again
+            "/history",              // tally before quitting
+            "/quit");                // abandon round 2
+        var output = new StringWriter();
+        var runner = CreateRunner(input: input, output: output);
+
+        runner.Run([]);
+
+        // The abandoned round leaves the 1:0 tally from round 1 untouched.
+        output.ToString().Should().Contain("Code Breaker wins: 1");
+        output.ToString().Should().Contain("Code Maker wins: 0");
+    }
+
+    [Fact]
+    public void Should_RevealSecretCode_When_QuitCommandIsEntered()
+    {
+        var output = new StringWriter();
+        var runner = CreateRunner(input: "/quit", output: output);
+
+        runner.Run([]);
+
+        output.ToString().Should().Contain("[i] The secret code was:");
     }
 
     [Fact]
@@ -278,6 +331,23 @@ public class ConsoleAppRunnerTests
     }
 
     [Fact]
+    public void Should_RevealTheOriginalSecret_When_TheGeneratorReusesItsArray()
+    {
+        var generated = new[] { CodePeg.Red, CodePeg.Blue, CodePeg.Yellow, CodePeg.Green };
+        var output = new StringWriter();
+        // The reader mutates the generator's buffer before handing over /quit,
+        // standing in for any host whose generator reuses its array while a
+        // round is underway: the reveal must print the code the round started
+        // with, not whatever the shared buffer holds by then.
+        var input = new MutatingReader(new StringReader("/quit"), () => generated[0] = CodePeg.Black);
+        var runner = new ConsoleAppRunner(CreateSecretCodeGenerator(generated), input, output, new StringWriter());
+
+        runner.Run([]);
+
+        output.ToString().Should().Contain("[Red] [Blue] [Yellow] [Green]");
+    }
+
+    [Fact]
     public void Should_WriteErrorAndReturnOne_When_SecretCodeGeneratorThrows()
     {
         var secretCodeGenerator = Substitute.For<ISecretCodeGenerator>();
@@ -320,5 +390,14 @@ public class ConsoleAppRunnerTests
         secretCodeGenerator.Generate(Arg.Any<int>()).Returns(secretCode);
 
         return secretCodeGenerator;
+    }
+
+    private sealed class MutatingReader(TextReader inner, Action onReadLine) : TextReader
+    {
+        public override string? ReadLine()
+        {
+            onReadLine();
+            return inner.ReadLine();
+        }
     }
 }

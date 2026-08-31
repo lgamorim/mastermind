@@ -21,7 +21,7 @@ public sealed class GameStateService(ISecretCodeGenerator secretCodeGenerator)
 
     public IReadOnlyList<CodePeg>? RevealedSecretCode { get; private set; }
 
-    public IReadOnlyList<CodePeg> AvailableColors { get; } = Enum.GetValues<CodePeg>();
+    public IReadOnlyList<CodePeg> AvailableColors { get; } = ReadOnlySnapshot(Enum.GetValues<CodePeg>());
 
     public void StartNewGame()
     {
@@ -31,7 +31,9 @@ public sealed class GameStateService(ISecretCodeGenerator secretCodeGenerator)
         HasWon = false;
         RevealedSecretCode = null;
 
-        _secretCode = secretCodeGenerator.Generate(_decodingBoard.BoardConfig.ShieldSize);
+        // Copy what the generator hands back: a generator that reuses its
+        // buffer must not be able to change this game's code afterwards.
+        _secretCode = (CodePeg[])secretCodeGenerator.Generate(_decodingBoard.BoardConfig.ShieldSize).Clone();
         _decodingBoard.PlayCodeMaker(new Shield(_secretCode));
 
         if (IsDebugMode)

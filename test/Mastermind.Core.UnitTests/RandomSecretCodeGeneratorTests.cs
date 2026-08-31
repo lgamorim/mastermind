@@ -29,6 +29,18 @@ public class RandomSecretCodeGeneratorTests
         code.Should().OnlyContain(peg => Enum.IsDefined(peg));
     }
 
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(-10)]
+    public void Should_ThrowArgumentOutOfRangeException_When_SizeIsNegative(int size)
+    {
+        var generator = new RandomSecretCodeGenerator();
+
+        var action = new Action(() => generator.Generate(size));
+
+        action.Should().ThrowExactly<ArgumentOutOfRangeException>();
+    }
+
     [Fact]
     public void Should_ReturnEmptyCode_When_SizeIsZero()
     {

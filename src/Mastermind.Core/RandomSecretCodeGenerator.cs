@@ -8,6 +8,8 @@ public sealed class RandomSecretCodeGenerator : ISecretCodeGenerator
     /// <inheritdoc />
     public CodePeg[] Generate(int size)
     {
+        ArgumentOutOfRangeException.ThrowIfNegative(size);
+
         var colors = Enum.GetValues<CodePeg>();
         var pattern = new CodePeg[size];
 

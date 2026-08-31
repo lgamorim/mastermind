@@ -10,6 +10,12 @@ public sealed class ConsoleAppRunner(
 {
     private readonly DecodingBoard _decodingBoard = new();
 
+    // Console colors are process-global state this class does not own, so only
+    // touch them when our own writer is the one painting the terminal. A runner
+    // constructed with a StringWriter (tests, or any embedding host) writes its
+    // text elsewhere and must leave the terminal alone.
+    private readonly bool _useColor = ReferenceEquals(output, Console.Out) && !Console.IsOutputRedirected;
+
     public int Run(string[] args)
     {
         try
@@ -24,7 +30,8 @@ public sealed class ConsoleAppRunner(
     }
 
     private const string CodeBreakerWinsMessage = "\n[~] Code Breaker wins!";
-    private const string CodeMakerWinsMessage = "\n\n[^] Code Maker wins!";
+    private const string CodeMakerWinsMessage = "\n[^] Code Maker wins!";
+    private const string QuitMessage = "\n[~] Thanks for playing!";
     private const string BlackLegend = "[Black] = right color in the right position.";
     private const string WhiteLegend = "[White] = right color in the wrong position.";
 
@@ -42,7 +49,14 @@ public sealed class ConsoleAppRunner(
 
         do
         {
-            if (RunSingleGame(isDebug))
+            var outcome = RunSingleGame(isDebug);
+
+            // An abandoned round is neither a win nor a loss, and the player has
+            // already said they are done -- leave the tally alone and do not ask
+            // them to confirm a second time.
+            if (outcome is GameOutcome.Abandoned) break;
+
+            if (outcome is GameOutcome.CodeBreakerWon)
             {
                 _sessionBreakerWins++;
             }
@@ -69,7 +83,7 @@ public sealed class ConsoleAppRunner(
         return answer is "y" or "yes";
     }
 
-    private bool RunSingleGame(bool isDebug)
+    private GameOutcome RunSingleGame(bool isDebug)
     {
         var generatedCode = PlayCodeMaker(_decodingBoard.BoardConfig.ShieldSize, isDebug);
         var shield = new Shield(generatedCode);
@@ -82,8 +96,21 @@ public sealed class ConsoleAppRunner(
         {
             RenderBoard(history);
 
-            var codePlayed = PlayCodeBreaker(play);
-            if (codePlayed is null) break;
+            var turn = PlayCodeBreaker(play);
+            if (turn.Code is not { } codePlayed)
+            {
+                if (turn.Action is BreakerAction.Quit)
+                {
+                    RenderBoard(history);
+                    RevealSecretCode(generatedCode);
+                    WriteLineColored(QuitMessage, ConsoleColor.Cyan);
+                    return GameOutcome.Abandoned;
+                }
+
+                // End of input: the code breaker is out of the game without
+                // having cracked the code, which scores as a Code Maker win.
+                break;
+            }
 
             output.Write("[~] The Code Breaker has played:\n\t");
 
@@ -124,18 +151,24 @@ public sealed class ConsoleAppRunner(
         if (!solved)
         {
             RenderBoard(history);
-            output.Write("\n[i] The secret code was:\n\t");
-            foreach (var color in generatedCode)
-            {
-                WriteColor(color);
-                output.Write(' ');
-            }
-
+            RevealSecretCode(generatedCode);
             WriteLineColored(CodeMakerWinsMessage, ConsoleColor.Red);
             output.WriteLine("    Better luck next time!");
         }
 
-        return solved;
+        return solved ? GameOutcome.CodeBreakerWon : GameOutcome.CodeMakerWon;
+    }
+
+    private void RevealSecretCode(CodePeg[] generatedCode)
+    {
+        output.Write("\n[i] The secret code was:\n\t");
+        foreach (var color in generatedCode)
+        {
+            WriteColor(color);
+            output.Write(' ');
+        }
+
+        output.WriteLine();
     }
 
     private void ShowBanner()
@@ -170,7 +203,10 @@ public sealed class ConsoleAppRunner(
 
     private CodePeg[] PlayCodeMaker(int size, bool isDebug)
     {
-        var pattern = secretCodeGenerator.Generate(size);
+        // Copy what the generator hands back, as GameStateService does: this
+        // array is held until the end-of-round reveal, and a generator that
+        // reuses its buffer must not be able to change it in the meantime.
+        var pattern = (CodePeg[])secretCodeGenerator.Generate(size).Clone();
 
         output.Write("[^] The Code Maker has played.\n\t");
 
@@ -192,21 +228,21 @@ public sealed class ConsoleAppRunner(
         return pattern;
     }
 
-    private CodePeg[]? PlayCodeBreaker(int play)
+    private BreakerTurn PlayCodeBreaker(int play)
     {
         while (true)
         {
             output.Write($"\n[>] Code Breaker play {play}/{_decodingBoard.BoardConfig.TotalRows}:\t");
 
             var line = input.ReadLine();
-            if (line is null) return null;
+            if (line is null) return new BreakerTurn(BreakerAction.EndOfInput, null);
 
             var trimmed = line.Trim();
             if (trimmed.StartsWith('/'))
             {
                 if (TryRunCommand(trimmed, out var quit))
                 {
-                    if (quit) return null;
+                    if (quit) return new BreakerTurn(BreakerAction.Quit, null);
                     continue;
                 }
 
@@ -237,7 +273,7 @@ public sealed class ConsoleAppRunner(
                 codePlayed.Add(peg);
             }
 
-            if (isValid) return codePlayed.ToArray();
+            if (isValid) return new BreakerTurn(BreakerAction.Played, codePlayed.ToArray());
         }
     }
 
@@ -325,16 +361,16 @@ public sealed class ConsoleAppRunner(
 
     private void WriteLineColored(string message, ConsoleColor color)
     {
-        if (!Console.IsOutputRedirected)
+        if (_useColor)
         {
             Console.ForegroundColor = color;
         }
 
         output.WriteLine(message);
 
-        if (!Console.IsOutputRedirected)
+        if (_useColor)
         {
-            Console.ForegroundColor = ConsoleColor.Gray;
+            Console.ResetColor();
         }
     }
 
@@ -346,7 +382,7 @@ public sealed class ConsoleAppRunner(
 
     private void WriteColorLabel(string label, ConsoleColor color, bool newline)
     {
-        if (!Console.IsOutputRedirected)
+        if (_useColor)
         {
             Console.ForegroundColor = color;
             Console.BackgroundColor = color != ConsoleColor.Black ? ConsoleColor.Black : ConsoleColor.White;
@@ -354,10 +390,12 @@ public sealed class ConsoleAppRunner(
 
         output.Write($"[{label}]");
 
-        if (!Console.IsOutputRedirected)
+        // Reset to the terminal's own colors rather than a hardcoded
+        // gray-on-black, which used to repaint light-themed terminals for the
+        // rest of the session and leave them that way on exit.
+        if (_useColor)
         {
-            Console.BackgroundColor = ConsoleColor.Black;
-            Console.ForegroundColor = ConsoleColor.Gray;
+            Console.ResetColor();
         }
 
         if (newline) output.WriteLine();
@@ -382,4 +420,26 @@ public sealed class ConsoleAppRunner(
         KeyPeg.Black => ConsoleColor.Black,
         KeyPeg.White => ConsoleColor.White,
     };
+
+    // How a round ended. Abandoned is deliberately distinct from CodeMakerWon:
+    // quitting must not be scored as a loss.
+    private enum GameOutcome
+    {
+        CodeBreakerWon,
+        CodeMakerWon,
+        Abandoned
+    }
+
+    // What the code breaker did when prompted. Quit and EndOfInput both mean
+    // "no guess", but they end the session very differently.
+    private enum BreakerAction
+    {
+        Played,
+        Quit,
+        EndOfInput
+    }
+
+    // Code is non-null exactly when Action is Played, which is what lets
+    // RunSingleGame pattern-match the guess out without a null suppression.
+    private readonly record struct BreakerTurn(BreakerAction Action, CodePeg[]? Code);
 }

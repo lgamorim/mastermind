@@ -55,13 +55,15 @@
                                 else if (isActive)
                                 {
                                     var slotColor = _guessSlots[pi];
-                                    <div class="peg-hole drop-zone @(slotColor.HasValue ? ToPegClass(slotColor.Value) : "") @(_dragOverSlot == pi ? "drag-over" : "")"
-                                         @ondragover:preventDefault
-                                         @ondragenter="() => _dragOverSlot = pi"
-                                         @ondragleave="() => _dragOverSlot = null"
-                                         @ondrop="() => OnSlotDrop(pi)"
-                                         @onclick="() => OnSlotClick(pi)">
-                                    </div>
+                                    <button type="button"
+                                            class="peg-hole drop-zone @(slotColor.HasValue ? ToPegClass(slotColor.Value) : "") @(_dragOverSlot == pi ? "drag-over" : "")"
+                                            aria-label="@ToSlotLabel(pi, slotColor)"
+                                            @ondragover:preventDefault
+                                            @ondragenter="() => _dragOverSlot = pi"
+                                            @ondragleave="() => OnSlotDragLeave(pi)"
+                                            @ondrop="() => OnSlotDrop(pi)"
+                                            @onclick="() => OnSlotClick(pi)">
+                                    </button>
                                 }
                                 else
                                 {
@@ -85,19 +87,24 @@
                     <button class="btn-submit" disabled="@(!AllSlotsFilled)" @onclick="SubmitGuess">Submit</button>
                     @if (_submitError is not null)
                     {
-                        <span class="submit-error">@_submitError</span>
+                        <span class="submit-error" role="alert">@_submitError</span>
                     }
                 </div>
 
                 <div class="palette">
                     @foreach (var color in GameState.AvailableColors)
                     {
-                        <div class="palette-peg @ToPegClass(color)"
-                             draggable="true"
-                             title="@color"
-                             @ondragstart="() => OnPaletteDragStart(color)"
-                             @ondragend="OnPaletteDragEnd">
-                        </div>
+                        var paletteColor = color;
+                        <button type="button"
+                                class="palette-peg @ToPegClass(paletteColor) @(_selectedColor == paletteColor ? "selected" : "")"
+                                draggable="true"
+                                title="@paletteColor"
+                                aria-label="@paletteColor"
+                                aria-pressed="@(_selectedColor == paletteColor ? "true" : "false")"
+                                @ondragstart="() => OnPaletteDragStart(paletteColor)"
+                                @ondragend="OnPaletteDragEnd"
+                                @onclick="() => OnPaletteClick(paletteColor)">
+                        </button>
                     }
                 </div>
             }

@@ -161,6 +161,33 @@ public class GameStateServiceTests
         gameStateService.AvailableColors.Should().BeEquivalentTo(Enum.GetValues<CodePeg>());
     }
 
+    [Fact]
+    public void Should_RejectMutation_When_AvailableColorsIsCastBackToAnArray()
+    {
+        var gameStateService = CreateGameStateService();
+
+        var mutate = new Action(() => ((CodePeg[])gameStateService.AvailableColors)[0] = CodePeg.Black);
+
+        mutate.Should().Throw<InvalidCastException>();
+        gameStateService.AvailableColors[0].Should().Be(CodePeg.Red);
+    }
+
+    [Fact]
+    public void Should_RevealTheOriginalSecret_When_TheGeneratorReusesItsArray()
+    {
+        var generated = new[] { CodePeg.Red, CodePeg.Blue, CodePeg.Yellow, CodePeg.Green };
+        var gameStateService = new GameStateService(CreateSecretCodeGenerator(generated));
+        gameStateService.StartNewGame();
+
+        // A generator that reuses its buffer between calls must not be able to
+        // change the code this game was started with.
+        generated[0] = CodePeg.Black;
+        gameStateService.TrySubmitGuess([CodePeg.Red, CodePeg.Blue, CodePeg.Yellow, CodePeg.Green], out _, out _);
+
+        gameStateService.HasWon.Should().BeTrue();
+        gameStateService.RevealedSecretCode.Should().Equal(CodePeg.Red, CodePeg.Blue, CodePeg.Yellow, CodePeg.Green);
+    }
+
     private static GameStateService CreateGameStateService()
     {
         return new GameStateService(CreateSecretCodeGenerator(SecretCode));

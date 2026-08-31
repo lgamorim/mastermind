@@ -46,7 +46,7 @@ Then open the printed localhost URL in your browser.
 To play with the secret code visible behind the shield, add `?debug=true` to the URL:
 
 ```
-http://localhost:5000/?debug=true
+http://localhost:5012/?debug=true
 ```
 
 ### Console app

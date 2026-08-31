@@ -172,6 +172,23 @@
     flex-shrink: 0;
 }
 
+/* The active row's holes and the palette are <button>s so they are focusable
+   and activate on Enter/Space; strip the UA chrome so they still read as pegs. */
+.peg-hole.drop-zone,
+.palette-peg {
+    appearance: none;
+    -webkit-appearance: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+}
+
+.peg-hole.drop-zone:focus-visible,
+.palette-peg:focus-visible {
+    outline: 3px solid #fbbf24;
+    outline-offset: 2px;
+}
+
 .peg-hole.drop-zone {
     cursor: pointer;
     transition: transform 0.1s, box-shadow 0.1s;
@@ -291,4 +308,11 @@
 
 .palette-peg:active {
     cursor: grabbing;
+}
+
+/* The selected color stays lifted so it is obvious which one the next tap on a
+   hole will place -- the only cue a touch user gets, with no drag to watch. */
+.palette-peg.selected {
+    transform: translateY(-4px) scale(1.12);
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.75), 0 6px 10px rgba(0, 0, 0, 0.5);
 }
