@@ -37,17 +37,34 @@ dotnet run --project src/Mastermind.WebApp
 @.claude/rules/overlays/workflow-solo.md
 @.claude/rules/archetype/application.md
 @.claude/rules/overlays/frontend-blazor.md
+@.claude/rules/overlays/workflow-agent-review-solo.md
 
 These are copied from the shared [claude-rules](https://github.com/lgamorim/claude-rules)
 repository via its `tools/sync.ps1`, composed as `application-solo -Add
-frontend-blazor`. Adding an overlay makes the set a composition that matches no
-profile, so the modules are imported directly rather than through a profile
-manifest. Re-audit for drift from the claude-rules checkout with the **same
-flags**, plus `-Check` -- it cannot infer how the set was composed:
+frontend-blazor,workflow-agent-review-solo`. Adding overlays makes the set a
+composition that matches no profile, so the modules are imported directly rather
+than through a profile manifest. Re-audit for drift from the claude-rules
+checkout with the **same flags**, plus `-Check` -- it cannot infer how the set
+was composed:
 
 ```powershell
-./tools/sync.ps1 -Target <path-to>\mastermind -Profile application-solo -Add frontend-blazor -Check
+./tools/sync.ps1 -Target <path-to>\mastermind -Profile application-solo -Add frontend-blazor,workflow-agent-review-solo -Check
 ```
+
+This repo runs the two-role implement/review flow from
+`overlays/workflow-agent-review-solo.md`. When a `feature/` branch is complete,
+the implementer ends by invoking the `code-reviewer` subagent
+(`.claude/agents/code-reviewer.md`), passing only the handoff summary (intent,
+tests added, deliberate deviations), and relays its findings report verbatim;
+the maintainer adjudicates the findings and authorizes the squash-merge.
+
+That agent file is a filled-in copy of the claude-rules repo's
+`.claude/rules/templates/reviewer-subagent.md` -- placeholders resolved to
+`opus` at `high` effort, the template's copy-instructions comment dropped.
+Change the reviewer's instructions there, not here. `sync.ps1` copies only the
+profile's modules, never templates, so `-Check` audits nothing about this file
+and its silence is not evidence the copy is current; diff it against the
+template by hand, ignoring those two deliberate differences.
 
 `Mastermind.Core` is an internal library consumed only by the console and web
 apps in this repo (never shipped as a package), so this repo follows the
