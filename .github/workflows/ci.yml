@@ -1,0 +1,50 @@
+# Enforces the gates in .claude/rules/core/coding-standards.md and
+# testing-philosophy.md on every push: the code passes `dotnet format`, builds
+# with zero warnings (TreatWarningsAsErrors is on in Directory.Build.props), and
+# every test passes. Feature branches are covered too, because the solo
+# workflow squash-merges them without opening a PR.
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+      - "feature/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore Mastermind.slnx
+
+      - name: Verify formatting
+        run: dotnet format Mastermind.slnx --verify-no-changes --no-restore
+
+      - name: Build
+        run: dotnet build Mastermind.slnx --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test Mastermind.slnx --configuration Release --no-build

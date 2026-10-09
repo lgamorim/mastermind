@@ -1,5 +1,6 @@
 # Mastermind
 
+[![CI](https://github.com/lgamorim/mastermind/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/lgamorim/mastermind/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
 
