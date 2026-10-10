@@ -8,10 +8,10 @@ namespace Mastermind.Core;
 /// </summary>
 public class DecodingBoard
 {
-    /// <summary>Creates a board with the standard 4-peg, 10-row configuration.</summary>
+    /// <summary>Creates a board with the <see cref="BoardConfig.Standard"/> configuration.</summary>
     public DecodingBoard()
+        : this(BoardConfig.Standard)
     {
-        BoardConfig = new BoardConfig(4, 10);
     }
 
     /// <summary>Creates a board with the given configuration.</summary>

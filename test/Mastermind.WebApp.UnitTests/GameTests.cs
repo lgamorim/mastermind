@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 using Xunit;
+using Game = Mastermind.WebApp.Pages.Game;
 
 namespace Mastermind.WebApp.UnitTests;
 

@@ -8,8 +8,6 @@ public sealed class ConsoleAppRunner(
     TextWriter output,
     TextWriter error)
 {
-    private readonly DecodingBoard _decodingBoard = new();
-
     // Console colors are process-global state this class does not own, so only
     // touch them when our own writer is the one painting the terminal. A runner
     // constructed with a StringWriter (tests, or any embedding host) writes its
@@ -45,7 +43,7 @@ public sealed class ConsoleAppRunner(
         ShowBanner();
         ShowCodePegColors();
         ShowLegend();
-        output.WriteLine($"\n[~] The Code Breaker plays by typing {_decodingBoard.BoardConfig.ShieldSize} colors separated by a blank space.");
+        output.WriteLine($"\n[~] The Code Breaker plays by typing {BoardConfig.Standard.ShieldSize} colors separated by a blank space.");
 
         do
         {
@@ -85,24 +83,20 @@ public sealed class ConsoleAppRunner(
 
     private GameOutcome RunSingleGame(bool isDebug)
     {
-        var generatedCode = PlayCodeMaker(_decodingBoard.BoardConfig.ShieldSize, isDebug);
-        var shield = new Shield(generatedCode);
-        _decodingBoard.PlayCodeMaker(shield);
+        var game = new Game(secretCodeGenerator);
+        ShowCodeMakerPlayed(game.SecretCode, isDebug);
 
-        var solved = false;
-        var history = new List<(CodePeg[] Guess, Response Response)>();
-
-        for (var play = 1; play <= _decodingBoard.BoardConfig.TotalRows; play++)
+        while (game.Status is GameStatus.InProgress)
         {
-            RenderBoard(history);
+            RenderBoard(game.History);
 
-            var turn = PlayCodeBreaker(play);
+            var turn = PlayCodeBreaker(game.History.Count + 1);
             if (turn.Code is not { } codePlayed)
             {
                 if (turn.Action is BreakerAction.Quit)
                 {
-                    RenderBoard(history);
-                    RevealSecretCode(generatedCode);
+                    RenderBoard(game.History);
+                    RevealSecretCode(game.SecretCode);
                     WriteLineColored(QuitMessage, ConsoleColor.Cyan);
                     return GameOutcome.Abandoned;
                 }
@@ -120,8 +114,7 @@ public sealed class ConsoleAppRunner(
                 output.Write(' ');
             }
 
-            var response = _decodingBoard.PlayCodeBreaker(codePlayed);
-            history.Add((codePlayed, response));
+            var response = game.Guess(codePlayed);
 
             output.Write("\n[^] The Code Maker has responded:\n\t");
 
@@ -138,31 +131,26 @@ public sealed class ConsoleAppRunner(
             }
 
             output.WriteLine();
-
-            if (_decodingBoard.HasCodeBreakerSolvedSecretCode(response))
-            {
-                RenderBoard(history);
-                WriteLineColored(CodeBreakerWinsMessage, ConsoleColor.Green);
-                solved = true;
-                break;
-            }
         }
 
-        if (!solved)
+        RenderBoard(game.History);
+
+        if (game.Status is GameStatus.CodeBreakerWon)
         {
-            RenderBoard(history);
-            RevealSecretCode(generatedCode);
-            WriteLineColored(CodeMakerWinsMessage, ConsoleColor.Red);
-            output.WriteLine("    Better luck next time!");
+            WriteLineColored(CodeBreakerWinsMessage, ConsoleColor.Green);
+            return GameOutcome.CodeBreakerWon;
         }
 
-        return solved ? GameOutcome.CodeBreakerWon : GameOutcome.CodeMakerWon;
+        RevealSecretCode(game.SecretCode);
+        WriteLineColored(CodeMakerWinsMessage, ConsoleColor.Red);
+        output.WriteLine("    Better luck next time!");
+        return GameOutcome.CodeMakerWon;
     }
 
-    private void RevealSecretCode(CodePeg[] generatedCode)
+    private void RevealSecretCode(IReadOnlyList<CodePeg> secretCode)
     {
         output.Write("\n[i] The secret code was:\n\t");
-        foreach (var color in generatedCode)
+        foreach (var color in secretCode)
         {
             WriteColor(color);
             output.Write(' ');
@@ -201,18 +189,13 @@ public sealed class ConsoleAppRunner(
         return Enum.GetNames<CodePeg>();
     }
 
-    private CodePeg[] PlayCodeMaker(int size, bool isDebug)
+    private void ShowCodeMakerPlayed(IReadOnlyList<CodePeg> secretCode, bool isDebug)
     {
-        // Copy what the generator hands back, as GameStateService does: this
-        // array is held until the end-of-round reveal, and a generator that
-        // reuses its buffer must not be able to change it in the meantime.
-        var pattern = (CodePeg[])secretCodeGenerator.Generate(size).Clone();
-
         output.Write("[^] The Code Maker has played.\n\t");
 
         if (isDebug)
         {
-            foreach (var color in pattern)
+            foreach (var color in secretCode)
             {
                 WriteColor(color);
                 output.Write(' ');
@@ -224,15 +207,13 @@ public sealed class ConsoleAppRunner(
         {
             output.WriteLine("[X] [X] [X] [X]");
         }
-
-        return pattern;
     }
 
     private BreakerTurn PlayCodeBreaker(int play)
     {
         while (true)
         {
-            output.Write($"\n[>] Code Breaker play {play}/{_decodingBoard.BoardConfig.TotalRows}:\t");
+            output.Write($"\n[>] Code Breaker play {play}/{BoardConfig.Standard.TotalRows}:\t");
 
             var line = input.ReadLine();
             if (line is null) return new BreakerTurn(BreakerAction.EndOfInput, null);
@@ -251,10 +232,10 @@ public sealed class ConsoleAppRunner(
             }
 
             var colors = trimmed.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
-            if (colors.Length != _decodingBoard.BoardConfig.ShieldSize)
+            if (colors.Length != BoardConfig.Standard.ShieldSize)
             {
-                output.WriteLine($"[!] The Code Breaker plays by typing {_decodingBoard.BoardConfig.ShieldSize} colors separated by a blank space.");
-                output.WriteLine($"    You entered {colors.Length} color(s); {_decodingBoard.BoardConfig.ShieldSize} are required.");
+                output.WriteLine($"[!] The Code Breaker plays by typing {BoardConfig.Standard.ShieldSize} colors separated by a blank space.");
+                output.WriteLine($"    You entered {colors.Length} color(s); {BoardConfig.Standard.ShieldSize} are required.");
                 continue;
             }
 
@@ -300,8 +281,8 @@ public sealed class ConsoleAppRunner(
 
     private void ShowHelp()
     {
-        var shieldSize = _decodingBoard.BoardConfig.ShieldSize;
-        output.WriteLine($"\n[?] Mastermind - break the secret code of {shieldSize} colors within {_decodingBoard.BoardConfig.TotalRows} attempts.");
+        var shieldSize = BoardConfig.Standard.ShieldSize;
+        output.WriteLine($"\n[?] Mastermind - break the secret code of {shieldSize} colors within {BoardConfig.Standard.TotalRows} attempts.");
         output.WriteLine($"    How to play: type {shieldSize} color names separated by spaces (for example: Red Blue Green Yellow).");
         output.WriteLine($"    {BlackLegend}");
         output.WriteLine($"    {WhiteLegend}");
@@ -316,18 +297,18 @@ public sealed class ConsoleAppRunner(
 
     private const int ColorCellWidth = 9;
 
-    private void RenderBoard(List<(CodePeg[] Guess, Response Response)> history)
+    private void RenderBoard(IReadOnlyList<GuessRecord> history)
     {
         if (history.Count == 0) return;
 
         output.WriteLine("\n[i] Board so far:");
         output.Write("\t  #  ");
-        output.Write("Guess".PadRight(_decodingBoard.BoardConfig.ShieldSize * ColorCellWidth));
+        output.Write("Guess".PadRight(BoardConfig.Standard.ShieldSize * ColorCellWidth));
         output.WriteLine("Result");
 
         for (var row = 0; row < history.Count; row++)
         {
-            var (guess, response) = history[row];
+            var (_, guess, response) = history[row];
 
             output.Write($"\t{row + 1,3}  ");
 

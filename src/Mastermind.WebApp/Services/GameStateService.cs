@@ -4,56 +4,44 @@ namespace Mastermind.WebApp.Services;
 
 public sealed class GameStateService(ISecretCodeGenerator secretCodeGenerator)
 {
-    private readonly List<GuessRecord> _history = [];
+    private Game? _game;
+    private bool _revealSecretFromStart;
 
-    private DecodingBoard _decodingBoard = new();
-    private CodePeg[]? _secretCode;
+    public BoardConfig BoardConfig => _game?.BoardConfig ?? BoardConfig.Standard;
 
-    public BoardConfig BoardConfig => _decodingBoard.BoardConfig;
+    public IReadOnlyList<GuessRecord> History => _game?.History ?? [];
 
-    public IReadOnlyList<GuessRecord> History => _history;
+    public bool IsGameOver => _game is { Status: not GameStatus.InProgress };
 
-    public bool IsGameOver { get; private set; }
-
-    public bool HasWon { get; private set; }
+    public bool HasWon => _game is { Status: GameStatus.CodeBreakerWon };
 
     public bool IsDebugMode { get; set; }
 
-    public IReadOnlyList<CodePeg>? RevealedSecretCode { get; private set; }
+    // Debug mode is read once per game: toggling it mid-game must not reveal
+    // (or hide) the code of a game already being played.
+    public IReadOnlyList<CodePeg>? RevealedSecretCode =>
+        _game is not null && (_revealSecretFromStart || IsGameOver) ? _game.SecretCode : null;
 
-    public IReadOnlyList<CodePeg> AvailableColors { get; } = ReadOnlySnapshot(Enum.GetValues<CodePeg>());
+    public IReadOnlyList<CodePeg> AvailableColors { get; } = Array.AsReadOnly(Enum.GetValues<CodePeg>());
 
     public void StartNewGame()
     {
-        _decodingBoard = new DecodingBoard();
-        _history.Clear();
-        IsGameOver = false;
-        HasWon = false;
-        RevealedSecretCode = null;
-
-        // Copy what the generator hands back: a generator that reuses its
-        // buffer must not be able to change this game's code afterwards.
-        _secretCode = (CodePeg[])secretCodeGenerator.Generate(_decodingBoard.BoardConfig.ShieldSize).Clone();
-        _decodingBoard.PlayCodeMaker(new Shield(_secretCode));
-
-        if (IsDebugMode)
-        {
-            RevealedSecretCode = ReadOnlySnapshot(_secretCode);
-        }
+        _game = new Game(secretCodeGenerator);
+        _revealSecretFromStart = IsDebugMode;
     }
 
     public bool TrySubmitGuess(CodePeg[] guess, out Response response, out string? error)
     {
-        if (IsGameOver)
+        if (_game is null)
         {
             response = default;
-            error = "The game is over. Start a new game to play again.";
+            error = "Start a new game to play.";
             return false;
         }
 
         try
         {
-            response = _decodingBoard.PlayCodeBreaker(guess);
+            response = _game.Guess(guess);
         }
         catch (Exception exception) when (exception is ArgumentException or InvalidOperationException)
         {
@@ -63,30 +51,6 @@ public sealed class GameStateService(ISecretCodeGenerator secretCodeGenerator)
         }
 
         error = null;
-        // The code maker has played (PlayCodeBreaker above would have thrown
-        // otherwise), so the secret code is guaranteed to be set here.
-        var secret = _secretCode!;
-        _history.Add(new GuessRecord(_history.Count + 1, ReadOnlySnapshot(guess), response));
-
-        if (_decodingBoard.HasCodeBreakerSolvedSecretCode(response))
-        {
-            HasWon = true;
-            IsGameOver = true;
-            RevealedSecretCode = ReadOnlySnapshot(secret);
-        }
-        else if (_history.Count == _decodingBoard.BoardConfig.TotalRows)
-        {
-            IsGameOver = true;
-            RevealedSecretCode = ReadOnlySnapshot(secret);
-        }
-
         return true;
     }
-
-    // Defensive copy exposed as a read-only view, so callers can neither mutate
-    // the array in place nor reach the service's internal state through it.
-    private static IReadOnlyList<CodePeg> ReadOnlySnapshot(CodePeg[] code) =>
-        Array.AsReadOnly((CodePeg[])code.Clone());
 }
-
-public sealed record GuessRecord(int Attempt, IReadOnlyList<CodePeg> Guess, Response Response);

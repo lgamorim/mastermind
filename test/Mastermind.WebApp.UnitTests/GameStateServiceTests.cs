@@ -98,6 +98,30 @@ public class GameStateServiceTests
     }
 
     [Fact]
+    public void Should_NotRevealSecretCode_When_DebugModeEnabledAfterGameStarted()
+    {
+        var gameStateService = CreateGameStateService();
+        gameStateService.StartNewGame();
+
+        gameStateService.IsDebugMode = true;
+
+        gameStateService.RevealedSecretCode.Should().BeNull();
+    }
+
+    [Fact]
+    public void Should_ReturnFalseWithError_When_GuessSubmittedBeforeAnyGameStarted()
+    {
+        var gameStateService = CreateGameStateService();
+
+        var result = gameStateService.TrySubmitGuess(SecretCode, out _, out var error);
+
+        result.Should().BeFalse();
+        error.Should().NotBeNullOrEmpty();
+        gameStateService.History.Should().BeEmpty();
+        gameStateService.IsGameOver.Should().BeFalse();
+    }
+
+    [Fact]
     public void Should_ReturnFalseWithError_When_GuessHasWrongLength()
     {
         var gameStateService = CreateGameStateService();
