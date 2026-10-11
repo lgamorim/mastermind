@@ -6,6 +6,8 @@
 
 _My implementation in .NET/C# of the Mastermind board game._
 
+**[Play the web version in your browser](https://lgamorim.github.io/mastermind/)**, no install needed.
+
 In this console version, the **computer is the Code Maker** and **you are the Code Breaker**. The computer picks a secret code and your goal is to break it within the allowed number of guesses.
 
 ## Rules
@@ -31,7 +33,7 @@ There are two versions of the game: a **web app** and a **console app**. Both fo
 
 ### Web app
 
-Build and run the web app:
+Play it [online](https://lgamorim.github.io/mastermind/), or build and run the web app locally:
 
 ```
 dotnet run --project src/Mastermind.WebApp

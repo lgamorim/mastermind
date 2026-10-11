@@ -2,7 +2,8 @@
 # testing-philosophy.md on every push: the code passes `dotnet format`, builds
 # with zero warnings (TreatWarningsAsErrors is on in Directory.Build.props), and
 # every test passes. Feature branches are covered too, because the solo
-# workflow squash-merges them without opening a PR.
+# workflow squash-merges them without opening a PR. On master, once those gates
+# pass, the web app is published to GitHub Pages.
 name: CI
 
 on:
@@ -48,3 +49,59 @@ jobs:
 
       - name: Test
         run: dotnet test Mastermind.slnx --configuration Release --no-build
+
+  deploy-web:
+    if: github.ref == 'refs/heads/master'
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Configure Pages
+        id: pages
+        uses: actions/configure-pages@v6
+
+      - name: Publish web app
+        run: dotnet publish src/Mastermind.WebApp --configuration Release --output publish
+
+      # A project site is served from /<repo>/ rather than the domain root
+      # (base_path is empty under a custom domain), so the app's base href must
+      # match or Blazor cannot find _framework/. The grep fails the job if the
+      # placeholder ever changes and the sed silently stops matching. 404.html
+      # is a copy of the app, so any path under the site still boots Blazor and
+      # its router renders the not-found page. The precompressed .br/.gz copies
+      # are dropped: Pages never serves them, and index.html's would keep the
+      # old base href.
+      - name: Prepare site for its Pages path
+        working-directory: publish/wwwroot
+        env:
+          BASE_HREF: ${{ steps.pages.outputs.base_path }}/
+        run: |
+          sed -i "s|<base href=\"/\" />|<base href=\"${BASE_HREF}\" />|" index.html
+          grep -qF "<base href=\"${BASE_HREF}\" />" index.html
+          cp index.html 404.html
+          find . \( -name '*.br' -o -name '*.gz' \) -delete
+
+      - name: Upload site
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: publish/wwwroot
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v5
