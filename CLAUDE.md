@@ -43,12 +43,21 @@ These are copied from the shared [claude-rules](https://github.com/lgamorim/clau
 repository via its `tools/sync.ps1`, composed as `application-solo -Add
 frontend-blazor,workflow-agent-review-solo`. Adding overlays makes the set a
 composition that matches no profile, so the modules are imported directly rather
-than through a profile manifest. Re-audit for drift from the claude-rules
-checkout with the **same flags**, plus `-Check` -- it cannot infer how the set
-was composed:
+than through a profile manifest. The sync stamps its source commit and that
+composition into `.claude/rules/.sync-source`, so re-audit for drift from the
+claude-rules checkout with `-Target` and `-Check` alone -- it reads the set
+from the stamp and lists the upstream commits since the stamped one that
+touched a file in the set:
 
 ```powershell
-./tools/sync.ps1 -Target <path-to>\mastermind -Profile application-solo -Add frontend-blazor,workflow-agent-review-solo -Check
+./tools/sync.ps1 -Target <path-to>\mastermind -Check
+```
+
+Flags passed with `-Check` must describe the stamped set, or it reports both
+sets and stops. A re-sync still takes the flags, which it re-stamps:
+
+```powershell
+./tools/sync.ps1 -Target <path-to>\mastermind -Profile application-solo -Add frontend-blazor,workflow-agent-review-solo
 ```
 
 This repo runs the two-role implement/review flow from
