@@ -1,3 +1,68 @@
+/* === Base ===
+   The page was laid out on top of Bootstrap's Reboot layer, which came with the
+   project template. The game uses none of Bootstrap's components, so instead of
+   shipping the framework these are the Reboot rules the layout depends on, with
+   Reboot's own values. */
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Liberation Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1.5;
+    color: #212529;
+    background-color: #fff;
+    -webkit-text-size-adjust: 100%;
+}
+
+h1,
+h2,
+h3 {
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    line-height: 1.2;
+}
+
+p,
+ol,
+dl {
+    margin-top: 0;
+    margin-bottom: 1rem;
+}
+
+ol {
+    padding-left: 2rem;
+}
+
+dd {
+    margin-bottom: 0.5rem;
+    margin-left: 0;
+}
+
+button {
+    margin: 0;
+    border-radius: 0;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    text-transform: none;
+}
+
+/* The stats panel collapses through the hidden attribute; keep it winning over
+   any display a component style sets. */
+[hidden] {
+    display: none !important;
+}
+
+/* === Blazor template === */
+
 .valid.modified:not([type=checkbox]) {
     outline: 1px solid #26b050;
 }
