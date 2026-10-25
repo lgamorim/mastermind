@@ -17,6 +17,7 @@ namespace Mastermind.WebApp.UnitTests;
 public class GameTests : BunitContext
 {
     private const string SavedGameKey = "mastermind.savedGame.v1";
+    private const string StatsKey = "mastermind.stats.v1";
 
     private static readonly CodePeg[] SecretCode = [CodePeg.Red, CodePeg.Blue, CodePeg.Yellow, CodePeg.Green];
 
@@ -31,7 +32,7 @@ public class GameTests : BunitContext
         Services.AddSingleton(secretCodeGenerator);
         Services.AddSingleton<GameStateService>();
         Services.AddSingleton<IWebAssemblyHostEnvironment>(_hostEnvironment);
-        Services.AddSingleton<SavedGameStore>();
+        Services.AddSingleton<GameStorage>();
 
         // Loose: unplanned localStorage calls succeed with defaults, so getItem
         // finds no save and setItem is accepted. Persistence tests set up the
@@ -421,7 +422,7 @@ public class GameTests : BunitContext
 
         var cut = Render<Game>();
 
-        cut.WaitForAssertion(() => JSInterop.VerifyInvoke("localStorage.getItem"));
+        cut.WaitForAssertion(() => JSInterop.VerifyInvoke("localStorage.getItem", calledTimes: 2));
         cut.FindAll(".board-placeholder").Should().HaveCount(1);
     }
 
@@ -433,7 +434,7 @@ public class GameTests : BunitContext
 
         var cut = Render<Game>();
 
-        cut.WaitForAssertion(() => JSInterop.VerifyInvoke("localStorage.getItem"));
+        cut.WaitForAssertion(() => JSInterop.VerifyInvoke("localStorage.getItem", calledTimes: 2));
         cut.FindAll(".board-placeholder").Should().HaveCount(1);
     }
 
@@ -491,6 +492,121 @@ public class GameTests : BunitContext
         cut.Find(".btn-submit").Click(); // empty holes: "fill every hole" error, nothing played
 
         JSInterop.Invocations["localStorage.setItem"].Should().HaveCount(1);
+    }
+
+    [Fact]
+    public void Should_ShowTheStatsPanel_When_NoGameHasStartedYet()
+    {
+        var cut = Render<Game>();
+
+        cut.FindAll(".board-placeholder").Should().HaveCount(1);
+        cut.FindAll(".stats").Should().HaveCount(1);
+        PlayedTile(cut).Should().Be("0");
+    }
+
+    [Fact]
+    public void Should_CountTheWinAndHighlightItsGuessCount_When_TheCodeIsCracked()
+    {
+        var cut = Render<Game>();
+        cut.Find(".btn-new-game").Click();
+
+        PlayGuess(cut, SecretCode);
+
+        PlayedTile(cut).Should().Be("1");
+        cut.Find(".distribution-row.highlighted").TextContent.Should().Contain("1 guess");
+    }
+
+    [Fact]
+    public void Should_SaveTheStats_When_AGameEnds()
+    {
+        var cut = Render<Game>();
+        cut.Find(".btn-new-game").Click();
+
+        PlayGuess(cut, SecretCode);
+
+        var statsSave = JSInterop.Invocations["localStorage.setItem"].Single(call => (string?)call.Arguments[0] == StatsKey);
+        statsSave.Arguments[1].Should().Be("""{"gamesPlayed":1,"wins":1,"currentStreak":1,"maxStreak":1,"winsByGuessCount":[1,0,0,0,0,0,0,0,0,0]}""");
+    }
+
+    [Fact]
+    public void Should_SaveALoss_When_ANewGameAbandonsOneInProgress()
+    {
+        var cut = Render<Game>();
+        cut.Find(".btn-new-game").Click();
+        PlayGuess(cut, [CodePeg.White, CodePeg.White, CodePeg.White, CodePeg.White]);
+
+        cut.Find(".btn-new-game").Click();
+
+        var statsSave = JSInterop.Invocations["localStorage.setItem"].Single(call => (string?)call.Arguments[0] == StatsKey);
+        statsSave.Arguments[1].Should().Be("""{"gamesPlayed":1,"wins":0,"currentStreak":0,"maxStreak":0,"winsByGuessCount":[0,0,0,0,0,0,0,0,0,0]}""");
+        PlayedTile(cut).Should().Be("1");
+    }
+
+    [Fact]
+    public void Should_NotSaveTheStats_When_AGuessLeavesTheGameInProgress()
+    {
+        var cut = Render<Game>();
+        cut.Find(".btn-new-game").Click();
+
+        PlayGuess(cut, [CodePeg.White, CodePeg.White, CodePeg.White, CodePeg.White]);
+
+        JSInterop.Invocations["localStorage.setItem"].Should().NotContain(call => (string?)call.Arguments[0] == StatsKey);
+    }
+
+    [Fact]
+    public void Should_ShowTheStoredStats_When_ThePageFirstRenders()
+    {
+        JSInterop.Setup<string?>("localStorage.getItem", StatsKey)
+            .SetResult("""{"gamesPlayed":7,"wins":5,"currentStreak":2,"maxStreak":3,"winsByGuessCount":[0,1,2,1,1,0,0,0,0,0]}""");
+
+        var cut = Render<Game>();
+
+        cut.WaitForAssertion(() => PlayedTile(cut).Should().Be("7"));
+    }
+
+    [Fact]
+    public async Task Should_KeepTheResultJustPlayed_When_TheStoredStatsArriveAfterIt()
+    {
+        var pendingLoad = JSInterop.Setup<string?>("localStorage.getItem", StatsKey);
+        var cut = Render<Game>();
+        cut.Find(".btn-new-game").Click();
+        PlayGuess(cut, SecretCode);
+
+        pendingLoad.SetResult("""{"gamesPlayed":7,"wins":5,"currentStreak":2,"maxStreak":3,"winsByGuessCount":[0,1,2,1,1,0,0,0,0,0]}""");
+        // The page resumes after the load on the renderer's dispatcher; queue behind
+        // it so the assertion sees the outcome rather than racing it.
+        await cut.InvokeAsync(() => { });
+
+        PlayedTile(cut).Should().Be("1");
+    }
+
+    [Fact]
+    public void Should_IgnoreTheStoredStats_When_TheyAreInconsistent()
+    {
+        // Five wins out of two games cannot have come from playing.
+        JSInterop.Setup<string?>("localStorage.getItem", StatsKey)
+            .SetResult("""{"gamesPlayed":2,"wins":5,"currentStreak":0,"maxStreak":0,"winsByGuessCount":[5,0,0,0,0,0,0,0,0,0]}""");
+
+        var cut = Render<Game>();
+
+        cut.WaitForAssertion(() => JSInterop.VerifyInvoke("localStorage.getItem", calledTimes: 2));
+        PlayedTile(cut).Should().Be("0");
+    }
+
+    private static string? PlayedTile(IRenderedComponent<Game> cut) =>
+        cut.FindAll(".stat").Single(tile => tile.QuerySelector("dt")?.TextContent == "Played").QuerySelector("dd")?.TextContent;
+
+    // Fills the active row by tapping a palette color and then each hole, and submits it.
+    private static void PlayGuess(IRenderedComponent<Game> cut, CodePeg[] guess)
+    {
+        for (var slot = 0; slot < guess.Length; slot++)
+        {
+            var palette = cut.FindAll(".palette-peg")[(int)guess[slot]];
+            if (palette.GetAttribute("aria-pressed") != "true") palette.Click();
+            cut.FindAll(".drop-zone")[slot].Click();
+        }
+
+        cut.Find(".btn-submit").Click();
     }
 
     // Debug arrives as a query parameter, so it is set by navigating rather than by passing

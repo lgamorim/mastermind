@@ -1,0 +1,66 @@
+<button type="button" class="stats-toggle" aria-expanded="@(_expanded ? "true" : "false")" aria-controls="stats-panel" @onclick="Toggle">
+    <span class="stats-toggle-chevron" aria-hidden="true">@(_expanded ? "▾" : "▸")</span>
+    @(_expanded ? "Hide statistics" : "Show statistics")
+</button>
+
+@* Hidden rather than removed, so the toggle's aria-controls always points at a real element. *@
+<section id="stats-panel" class="stats" aria-labelledby="stats-heading" hidden="@(!_expanded)">
+    <h2 id="stats-heading" class="stats-title">Statistics</h2>
+
+    <dl class="stats-tiles">
+        <div class="stat"><dt>Played</dt><dd>@Stats.GamesPlayed</dd></div>
+        <div class="stat"><dt>Win rate</dt><dd>@(Stats.WinRatePercent)%</dd></div>
+        <div class="stat"><dt>Current streak</dt><dd>@Stats.CurrentStreak</dd></div>
+        <div class="stat"><dt>Best streak</dt><dd>@Stats.MaxStreak</dd></div>
+    </dl>
+
+    <h3 class="stats-subtitle">Wins by number of guesses</h3>
+
+    @if (Stats.Wins == 0)
+    {
+        <p class="stats-empty">No wins yet. Crack a code to start the chart.</p>
+    }
+    else
+    {
+        var mostWins = Stats.WinsByGuessCount.Max();
+        <ol class="guess-distribution">
+            @for (var index = 0; index < Stats.WinsByGuessCount.Length; index++)
+            {
+                var guesses = index + 1;
+                var wins = Stats.WinsByGuessCount[index];
+                var isHighlighted = guesses == HighlightedGuessCount;
+                <li class="distribution-row @(isHighlighted ? "highlighted" : "")"
+                    aria-current="@(isHighlighted ? "true" : null)"
+                    title="@Describe(guesses, wins)">
+                    <span class="distribution-label">@guesses<span class="visually-hidden">@($" {Plural(guesses, "guess", "guesses")}")</span></span>
+                    <span class="distribution-track" aria-hidden="true">
+                        <span class="distribution-bar" style="width: @(Percent(wins, mostWins))%"></span>
+                    </span>
+                    <span class="distribution-count">@wins<span class="visually-hidden">@($" {Plural(wins, "win", "wins")}")</span></span>
+                </li>
+            }
+        </ol>
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public GameStats Stats { get; set; } = GameStats.Empty;
+
+    // The guess count of a game just won, so the player can find it in the chart.
+    [Parameter]
+    public int? HighlightedGuessCount { get; set; }
+
+    private bool _expanded = true;
+
+    private void Toggle() => _expanded = !_expanded;
+
+    // Only called once there is at least one win, so mostWins is never zero.
+    private static int Percent(int wins, int mostWins) =>
+        (int)Math.Round(100.0 * wins / mostWins, MidpointRounding.AwayFromZero);
+
+    private static string Plural(int count, string one, string many) => count == 1 ? one : many;
+
+    private static string Describe(int guesses, int wins) =>
+        $"{guesses} {Plural(guesses, "guess", "guesses")}: {wins} {Plural(wins, "win", "wins")}";
+}

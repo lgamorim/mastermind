@@ -330,6 +330,153 @@ public class GameStateServiceTests
         gameStateService.IsGameOver.Should().BeFalse(scenario);
     }
 
+    [Fact]
+    public void Should_HaveEmptyStats_When_NothingHasBeenPlayed()
+    {
+        var gameStateService = CreateGameStateService();
+
+        gameStateService.Stats.Should().BeEquivalentTo(GameStats.Empty);
+    }
+
+    [Fact]
+    public void Should_RecordTheWinWithItsGuessCount_When_TheCodeIsCracked()
+    {
+        var gameStateService = CreateGameStateService();
+        gameStateService.StartNewGame();
+        gameStateService.TrySubmitGuess([CodePeg.White, CodePeg.White, CodePeg.White, CodePeg.White], out _, out _);
+
+        gameStateService.TrySubmitGuess(SecretCode, out _, out _);
+
+        gameStateService.Stats.GamesPlayed.Should().Be(1);
+        gameStateService.Stats.Wins.Should().Be(1);
+        gameStateService.Stats.WinsByGuessCount[1].Should().Be(1);
+    }
+
+    [Fact]
+    public void Should_RecordALoss_When_EveryRowIsUsedWithoutCrackingTheCode()
+    {
+        var gameStateService = CreateGameStateService();
+        gameStateService.StartNewGame();
+
+        for (var attempt = 0; attempt < gameStateService.BoardConfig.TotalRows; attempt++)
+        {
+            gameStateService.TrySubmitGuess([CodePeg.White, CodePeg.White, CodePeg.White, CodePeg.White], out _, out _);
+        }
+
+        gameStateService.Stats.GamesPlayed.Should().Be(1);
+        gameStateService.Stats.Wins.Should().Be(0);
+    }
+
+    [Fact]
+    public void Should_NotRecordAnything_When_AGuessLeavesTheGameInProgress()
+    {
+        var gameStateService = CreateGameStateService();
+        gameStateService.StartNewGame();
+
+        gameStateService.TrySubmitGuess([CodePeg.White, CodePeg.White, CodePeg.White, CodePeg.White], out _, out _);
+
+        gameStateService.Stats.GamesPlayed.Should().Be(0);
+    }
+
+    [Fact]
+    public void Should_RecordALoss_When_ANewGameAbandonsOneWithGuesses()
+    {
+        var gameStateService = CreateGameStateService();
+        gameStateService.StartNewGame();
+        gameStateService.TrySubmitGuess(SecretCode, out _, out _);
+        gameStateService.StartNewGame();
+        gameStateService.TrySubmitGuess([CodePeg.White, CodePeg.White, CodePeg.White, CodePeg.White], out _, out _);
+
+        gameStateService.StartNewGame();
+
+        gameStateService.Stats.GamesPlayed.Should().Be(2);
+        gameStateService.Stats.Wins.Should().Be(1);
+        gameStateService.Stats.CurrentStreak.Should().Be(0);
+    }
+
+    [Fact]
+    public void Should_NotRecordALoss_When_ANewGameReplacesOneWithNoGuesses()
+    {
+        var gameStateService = CreateGameStateService();
+        gameStateService.StartNewGame();
+
+        gameStateService.StartNewGame();
+
+        gameStateService.Stats.GamesPlayed.Should().Be(0);
+    }
+
+    [Fact]
+    public void Should_NotRecordTheGameTwice_When_ANewGameFollowsAFinishedOne()
+    {
+        var gameStateService = CreateGameStateService();
+        gameStateService.StartNewGame();
+        gameStateService.TrySubmitGuess(SecretCode, out _, out _);
+
+        gameStateService.StartNewGame();
+
+        gameStateService.Stats.GamesPlayed.Should().Be(1);
+    }
+
+    [Fact]
+    public void Should_NotRecordDebugGames_When_TheyAreWonOrAbandoned()
+    {
+        var gameStateService = CreateGameStateService();
+        gameStateService.IsDebugMode = true;
+        gameStateService.StartNewGame();
+        gameStateService.TrySubmitGuess(SecretCode, out _, out _);
+        gameStateService.StartNewGame();
+        gameStateService.TrySubmitGuess([CodePeg.White, CodePeg.White, CodePeg.White, CodePeg.White], out _, out _);
+
+        gameStateService.StartNewGame();
+
+        gameStateService.Stats.GamesPlayed.Should().Be(0);
+    }
+
+    [Fact]
+    public void Should_NotRecordAnything_When_AFinishedGameIsRestored()
+    {
+        var gameStateService = CreateGameStateService();
+
+        gameStateService.TryRestore(new SavedGame(SecretCode, [SecretCode], RevealSecretFromStart: false));
+
+        gameStateService.Stats.GamesPlayed.Should().Be(0);
+    }
+
+    [Fact]
+    public void Should_RecordALoss_When_ANewGameAbandonsARestoredGameWithGuesses()
+    {
+        var gameStateService = CreateGameStateService();
+        gameStateService.TryRestore(new SavedGame(SecretCode, [[CodePeg.White, CodePeg.White, CodePeg.White, CodePeg.White]], RevealSecretFromStart: false));
+
+        gameStateService.StartNewGame();
+
+        gameStateService.Stats.GamesPlayed.Should().Be(1);
+    }
+
+    [Fact]
+    public void Should_AdoptTheStoredStats_When_TheyAreConsistent()
+    {
+        var gameStateService = CreateGameStateService();
+        var stored = GameStats.Empty.RecordWin(3).RecordLoss().RecordWin(6);
+
+        var restored = gameStateService.TryRestoreStats(stored);
+
+        restored.Should().BeTrue();
+        gameStateService.Stats.Should().BeEquivalentTo(stored);
+    }
+
+    [Fact]
+    public void Should_KeepTheCurrentStats_When_TheStoredStatsAreInconsistent()
+    {
+        var gameStateService = CreateGameStateService();
+        gameStateService.TryRestoreStats(GameStats.Empty.RecordWin(3));
+
+        var restored = gameStateService.TryRestoreStats(new GameStats(1, 5, 0, 0, [5, 0, 0, 0, 0, 0, 0, 0, 0, 0]));
+
+        restored.Should().BeFalse();
+        gameStateService.Stats.Wins.Should().Be(1);
+    }
+
     private static GameStateService CreateGameStateService()
     {
         return new GameStateService(CreateSecretCodeGenerator(SecretCode));

@@ -29,7 +29,7 @@ public partial class Game
 
     // default!: assigned by the framework before use, as GameState above.
     [Inject]
-    private SavedGameStore GameStore { get; set; } = default!;
+    private GameStorage Storage { get; set; } = default!;
 
     private bool GameStarted => _guessSlots.Length > 0;
 
@@ -60,29 +60,40 @@ public partial class Game
     }
 
     // localStorage is reached through JS interop, which is only available once
-    // the page has rendered, so the saved game is picked up here rather than in
-    // OnInitialized.
+    // the page has rendered, so the stats and saved game are picked up here
+    // rather than in OnInitialized. Each is applied only if the player has not
+    // moved on while it was loading: a game they already started, or a result
+    // they already recorded, wins over the stored one.
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
 
-        var savedGame = await GameStore.LoadAsync();
+        var statsBeforeLoad = GameState.Stats;
+        var storedStats = await Storage.LoadStatsAsync();
+        var statsRestored = storedStats is not null
+            && ReferenceEquals(GameState.Stats, statsBeforeLoad)
+            && GameState.TryRestoreStats(storedStats);
 
-        // The player may have clicked New Game while the save was loading; the
-        // game they just started wins over the old one.
-        if (savedGame is null || GameStarted || !GameState.TryRestore(savedGame)) return;
-
-        ResetBoardInput();
+        var savedGame = await Storage.LoadGameAsync();
+        var gameRestored = savedGame is not null && !GameStarted && GameState.TryRestore(savedGame);
+        if (gameRestored)
+        {
+            ResetBoardInput();
+        }
 
         // Restored outside any event handler, so Blazor does not re-render on its own.
-        await InvokeAsync(StateHasChanged);
+        if (statsRestored || gameRestored)
+        {
+            await InvokeAsync(StateHasChanged);
+        }
     }
 
     private async Task StartNewGame()
     {
+        var statsBefore = GameState.Stats;
         GameState.StartNewGame();
         ResetBoardInput();
-        await SaveGameAsync();
+        await SaveProgressAsync(statsBefore);
     }
 
     private void ResetBoardInput()
@@ -94,11 +105,19 @@ public partial class Game
         _dragOverSlot = null;
     }
 
-    private async Task SaveGameAsync()
+    // Saves the game after every move, and the stats only when the move
+    // changed them (a game ended or was abandoned). GameStats is immutable, so
+    // a changed record is a different instance.
+    private async Task SaveProgressAsync(GameStats statsBefore)
     {
         if (GameState.CreateSavedGame() is { } savedGame)
         {
-            await GameStore.SaveAsync(savedGame);
+            await Storage.SaveGameAsync(savedGame);
+        }
+
+        if (!ReferenceEquals(GameState.Stats, statsBefore))
+        {
+            await Storage.SaveStatsAsync(GameState.Stats);
         }
     }
 
@@ -174,6 +193,7 @@ public partial class Game
 
         // Every slot is non-null here, guarded immediately above.
         var guess = _guessSlots.Select(slot => slot!.Value).ToArray();
+        var statsBefore = GameState.Stats;
 
         if (GameState.TrySubmitGuess(guess, out _, out var error))
         {
@@ -182,7 +202,7 @@ public partial class Game
             _draggedColor = null;
             _selectedColor = null;
             _dragOverSlot = null;
-            await SaveGameAsync();
+            await SaveProgressAsync(statsBefore);
         }
         else
         {

@@ -49,6 +49,8 @@ Then open the printed localhost URL in your browser.
 
 Your game is saved in the browser after every guess, so reloading the page or coming back later picks it up where you left off. Pegs placed but not yet submitted are not saved. **New Game** replaces the saved game.
 
+Below the board, **Statistics** tracks your games in the same browser: games played, win rate, your current and best winning streaks, and a chart of how many guesses each win took. Starting a new game while one with guesses is still in progress counts as a loss. Games played in debug mode are not counted. Use **Hide statistics** under the board to collapse the panel, and **Show statistics** to bring it back.
+
 #### Debug mode (web app)
 
 To play with the secret code visible behind the shield, add `?debug=true` to the URL:

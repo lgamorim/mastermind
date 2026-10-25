@@ -24,8 +24,22 @@ public sealed class GameStateService(ISecretCodeGenerator secretCodeGenerator)
 
     public IReadOnlyList<CodePeg> AvailableColors { get; } = Array.AsReadOnly(Enum.GetValues<CodePeg>());
 
+    // Only games played without the secret showing count, and each is
+    // recorded once, at the moment it ends: restoring a finished game from
+    // storage records nothing, so a reload cannot count it again.
+    public GameStats Stats { get; private set; } = GameStats.Empty;
+
+    private bool CountsTowardStats => !_revealSecretFromStart;
+
     public void StartNewGame()
     {
+        // Walking away from a game in progress counts as a loss, so restarting
+        // cannot protect a streak. A game with no guesses yet was never played.
+        if (_game is { Status: GameStatus.InProgress, History.Count: > 0 } && CountsTowardStats)
+        {
+            Stats = Stats.RecordLoss();
+        }
+
         _game = new Game(secretCodeGenerator);
         _revealSecretFromStart = IsDebugMode;
     }
@@ -50,7 +64,25 @@ public sealed class GameStateService(ISecretCodeGenerator secretCodeGenerator)
             return false;
         }
 
+        if (CountsTowardStats)
+        {
+            Stats = _game.Status switch
+            {
+                GameStatus.CodeBreakerWon => Stats.RecordWin(_game.History.Count),
+                GameStatus.CodeMakerWon => Stats.RecordLoss(),
+                _ => Stats,
+            };
+        }
+
         error = null;
+        return true;
+    }
+
+    public bool TryRestoreStats(GameStats stats)
+    {
+        if (!stats.IsConsistent()) return false;
+
+        Stats = stats;
         return true;
     }
 

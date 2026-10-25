@@ -111,4 +111,6 @@
 
         </div>
     }
+
+    <StatsPanel Stats="GameState.Stats" HighlightedGuessCount="@(GameState.HasWon ? GameState.History.Count : null)" />
 </div>
