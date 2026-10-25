@@ -5,6 +5,7 @@ using Mastermind.Core;
 using Mastermind.WebApp.Pages;
 using Mastermind.WebApp.Services;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 using Xunit;
@@ -16,12 +17,17 @@ public class GameTests : BunitContext
 {
     private static readonly CodePeg[] SecretCode = [CodePeg.Red, CodePeg.Blue, CodePeg.Yellow, CodePeg.Green];
 
+    // Production by default, as the published site runs: a static host sends no
+    // Blazor-Environment header, so WebAssembly falls back to Production.
+    private readonly FakeHostEnvironment _hostEnvironment = new() { Environment = "Production" };
+
     public GameTests()
     {
         var secretCodeGenerator = Substitute.For<ISecretCodeGenerator>();
         secretCodeGenerator.Generate(Arg.Any<int>()).Returns(SecretCode);
         Services.AddSingleton(secretCodeGenerator);
         Services.AddSingleton<GameStateService>();
+        Services.AddSingleton<IWebAssemblyHostEnvironment>(_hostEnvironment);
     }
 
     [Fact]
@@ -340,12 +346,10 @@ public class GameTests : BunitContext
     }
 
     [Fact]
-    public void Should_RevealTheSecretCode_When_DebugIsRequested()
+    public void Should_RevealTheSecretCode_When_DebugIsRequestedInDevelopment()
     {
-        // Debug arrives as a query parameter, so it is set by navigating rather than by passing
-        // the parameter directly.
-        var navigation = Services.GetRequiredService<NavigationManager>();
-        navigation.NavigateTo(navigation.GetUriWithQueryParameter("debug", true));
+        _hostEnvironment.Environment = "Development";
+        RequestDebugMode();
         var cut = Render<Game>();
 
         cut.Find(".btn-new-game").Click();
@@ -355,14 +359,47 @@ public class GameTests : BunitContext
         shield.Should().Equal("peg--red", "peg--blue", "peg--yellow", "peg--green");
     }
 
-    [Fact]
-    public void Should_HideTheSecretCode_When_DebugIsNotRequested()
+    [Theory]
+    [InlineData("Production")]
+    [InlineData("Staging")]
+    public void Should_HideTheSecretCode_When_DebugIsRequestedOutsideDevelopment(string environment)
     {
+        _hostEnvironment.Environment = environment;
+        RequestDebugMode();
         var cut = Render<Game>();
 
         cut.Find(".btn-new-game").Click();
 
         cut.FindAll(".shield-hole").Should().HaveCount(4);
         cut.FindAll(".shield-hole").Should().OnlyContain(hole => hole.ClassList.Count() == 1);
+    }
+
+    [Theory]
+    [InlineData("Production")]
+    [InlineData("Development")]
+    public void Should_HideTheSecretCode_When_DebugIsNotRequested(string environment)
+    {
+        _hostEnvironment.Environment = environment;
+        var cut = Render<Game>();
+
+        cut.Find(".btn-new-game").Click();
+
+        cut.FindAll(".shield-hole").Should().HaveCount(4);
+        cut.FindAll(".shield-hole").Should().OnlyContain(hole => hole.ClassList.Count() == 1);
+    }
+
+    // Debug arrives as a query parameter, so it is set by navigating rather than by passing
+    // the parameter directly.
+    private void RequestDebugMode()
+    {
+        var navigation = Services.GetRequiredService<NavigationManager>();
+        navigation.NavigateTo(navigation.GetUriWithQueryParameter("debug", true));
+    }
+
+    private sealed class FakeHostEnvironment : IWebAssemblyHostEnvironment
+    {
+        public required string Environment { get; set; }
+
+        public string BaseAddress => "http://localhost/";
     }
 }

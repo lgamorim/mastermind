@@ -2,6 +2,7 @@
 using Mastermind.WebApp.Services;
 
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 
 namespace Mastermind.WebApp.Pages;
 
@@ -22,13 +23,21 @@ public partial class Game
     [Inject]
     private GameStateService GameState { get; set; } = default!;
 
+    // default!: assigned by the framework before use, as GameState above.
+    [Inject]
+    private IWebAssemblyHostEnvironment HostEnvironment { get; set; } = default!;
+
     private bool GameStarted => _guessSlots.Length > 0;
 
     private bool AllSlotsFilled => _guessSlots.Length > 0 && _guessSlots.All(slot => slot is not null);
 
+    // ?debug=true shows the secret code, so only a local development run honors
+    // it; the published site runs as Production and ignores it. This hides the
+    // code from casual players, not from anyone reading the app's memory: the
+    // code lives in the browser either way.
     protected override void OnParametersSet()
     {
-        GameState.IsDebugMode = Debug;
+        GameState.IsDebugMode = Debug && HostEnvironment.IsDevelopment();
     }
 
     private static string ToPegClass(CodePeg color) => $"peg--{color.ToString().ToLowerInvariant()}";
