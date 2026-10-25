@@ -4,6 +4,7 @@ using System.Linq;
 using FluentAssertions;
 using Mastermind.Core;
 using NSubstitute;
+using Spectre.Console;
 using Xunit;
 
 namespace Mastermind.ConsoleApp.UnitTests;
@@ -27,7 +28,7 @@ public class ConsoleAppRunnerTests
     public void Should_RequestSecretFromGenerator_When_GameStarts()
     {
         var secretCodeGenerator = CreateSecretCodeGenerator(SecretCode);
-        var runner = new ConsoleAppRunner(secretCodeGenerator, new StringReader(string.Empty), new StringWriter(), new StringWriter());
+        var runner = new ConsoleAppRunner(secretCodeGenerator, new StringReader(string.Empty), CreateConsole(new StringWriter()), new StringWriter());
 
         runner.Run([]);
 
@@ -133,11 +134,10 @@ public class ConsoleAppRunnerTests
         // Collapse runs of spaces/tabs so the assertion is independent of the
         // board's column padding (the play echo uses single spaces).
         var text = System.Text.RegularExpressions.Regex.Replace(output.ToString(), "[ \t]+", " ");
-        text.Should().Contain("Guess");
-        text.Should().Contain("Result");
+        text.Should().Contain("# Guess Feedback");
         // The first guess row is echoed once when played, then reprinted on the
         // history board for every subsequent render -> it must appear more than once.
-        CountOccurrences(text, "[Red] [Red] [Red] [Red]").Should().BeGreaterThan(1);
+        CountOccurrences(text, "● Red ● Red ● Red ● Red").Should().BeGreaterThan(1);
     }
 
     [Fact]
@@ -340,11 +340,11 @@ public class ConsoleAppRunnerTests
         // round is underway: the reveal must print the code the round started
         // with, not whatever the shared buffer holds by then.
         var input = new MutatingReader(new StringReader("/quit"), () => generated[0] = CodePeg.Black);
-        var runner = new ConsoleAppRunner(CreateSecretCodeGenerator(generated), input, output, new StringWriter());
+        var runner = new ConsoleAppRunner(CreateSecretCodeGenerator(generated), input, CreateConsole(output), new StringWriter());
 
         runner.Run([]);
 
-        output.ToString().Should().Contain("[Red] [Blue] [Yellow] [Green]");
+        CollapseSpaces(output.ToString()).Should().Contain("● Red ● Blue ● Yellow ● Green");
     }
 
     [Fact]
@@ -354,7 +354,7 @@ public class ConsoleAppRunnerTests
         secretCodeGenerator.Generate(Arg.Any<int>()).Returns(_ => throw new InvalidOperationException("Generator failed"));
 
         var error = new StringWriter();
-        var runner = new ConsoleAppRunner(secretCodeGenerator, new StringReader(string.Empty), new StringWriter(), error);
+        var runner = new ConsoleAppRunner(secretCodeGenerator, new StringReader(string.Empty), CreateConsole(new StringWriter()), error);
 
         var exitCode = runner.Run([]);
 
@@ -362,13 +362,132 @@ public class ConsoleAppRunnerTests
         error.ToString().Trim().Should().Be("Generator failed");
     }
 
+    [Fact]
+    public void Should_ListEachCodePegAsADotAndName_When_GameStarts()
+    {
+        var output = new StringWriter();
+        var runner = CreateRunner(input: string.Empty, output: output);
+
+        runner.Run([]);
+
+        var text = CollapseSpaces(output.ToString());
+        foreach (var color in Enum.GetNames<CodePeg>())
+        {
+            text.Should().Contain($"● {color}");
+        }
+    }
+
+    [Fact]
+    public void Should_ExplainTheFeedbackDots_When_GameStarts()
+    {
+        var output = new StringWriter();
+        var runner = CreateRunner(input: string.Empty, output: output);
+
+        runner.Run([]);
+
+        output.ToString().Should().Contain("● = right color in the right position.");
+        output.ToString().Should().Contain("○ = right color in the wrong position.");
+    }
+
+    [Fact]
+    public void Should_ShowFilledThenHollowDots_When_AGuessIsScored()
+    {
+        // Secret is Red Blue Yellow Green: Red Red Blue Blue has Red in place once
+        // and Blue out of place once.
+        var input = string.Join(Environment.NewLine, "Red Red Blue Blue", "Red Blue Yellow Green");
+        var output = new StringWriter();
+        var runner = CreateRunner(input: input, output: output);
+
+        runner.Run([]);
+
+        LineAfter(output.ToString(), "[^] The Code Maker has responded:").Should().Be("● ○");
+    }
+
+    [Fact]
+    public void Should_SayNone_When_AGuessEarnsNoKeyPegs()
+    {
+        var input = string.Join(Environment.NewLine, "White White White White", "Red Blue Yellow Green");
+        var output = new StringWriter();
+        var runner = CreateRunner(input: input, output: output);
+
+        runner.Run([]);
+
+        LineAfter(output.ToString(), "[^] The Code Maker has responded:").Should().Be("none");
+    }
+
+    [Fact]
+    public void Should_ColorThePegs_When_TheConsoleSupportsColor()
+    {
+        var output = new StringWriter();
+        var runner = new ConsoleAppRunner(
+            CreateSecretCodeGenerator(SecretCode),
+            new StringReader("Red Blue Yellow Green"),
+            CreateConsole(output, color: true),
+            new StringWriter());
+
+        runner.Run([]);
+
+        output.ToString().Should().Contain("\u001b[");
+    }
+
+    [Fact]
+    public void Should_WritePlainText_When_TheConsoleHasNoColor()
+    {
+        var output = new StringWriter();
+        var runner = CreateRunner(input: "Red Blue Yellow Green", output: output);
+
+        runner.Run([]);
+
+        output.ToString().Should().NotContain("\u001b");
+    }
+
+    [Fact]
+    public void Should_KeepEachMessageOnOneLine_When_ItIsWiderThanTheConsole()
+    {
+        // The help's "How to play" line is longer than the 80 columns a
+        // redirected run gets; it must come out exactly as written, not
+        // hard-wrapped with an inserted line break.
+        var input = string.Join(Environment.NewLine, "/help", "Red Blue Yellow Green");
+        var output = new StringWriter();
+        var runner = CreateRunner(input: input, output: output);
+
+        runner.Run([]);
+
+        output.ToString().Should().Contain(
+            "    How to play: type 4 color names separated by spaces (for example: Red Blue Green Yellow)." + Environment.NewLine);
+    }
+
     private static ConsoleAppRunner CreateRunner(string input, TextWriter output)
     {
         return new ConsoleAppRunner(
             CreateSecretCodeGenerator(SecretCode),
             new StringReader(input),
-            output,
+            CreateConsole(output),
             new StringWriter());
+    }
+
+    // A console writing to the given writer: plain text by default, as when
+    // output is redirected, or ANSI-colored. It keeps Spectre's default width
+    // for a non-terminal writer (80 columns), the width a redirected run gets.
+    private static IAnsiConsole CreateConsole(TextWriter writer, bool color = false) =>
+        AnsiConsole.Create(new AnsiConsoleSettings
+        {
+            Ansi = color ? AnsiSupport.Yes : AnsiSupport.No,
+            ColorSystem = color ? ColorSystemSupport.TrueColor : ColorSystemSupport.NoColors,
+            Interactive = InteractionSupport.No,
+            Out = new AnsiConsoleOutput(writer),
+        });
+
+    // Collapses runs of spaces and tabs so assertions do not depend on padding.
+    private static string CollapseSpaces(string text) =>
+        System.Text.RegularExpressions.Regex.Replace(text, "[ \t]+", " ");
+
+    // The trimmed text of the first non-blank line after the first line containing marker.
+    private static string LineAfter(string text, string marker)
+    {
+        var lines = text.Split('\n').Select(line => line.Trim()).ToList();
+        var markerIndex = lines.FindIndex(line => line.Contains(marker, StringComparison.Ordinal));
+        return lines.Skip(markerIndex + 1).First(line => line.Length > 0);
     }
 
     private static int CountOccurrences(string text, string value)

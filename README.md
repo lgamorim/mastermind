@@ -79,8 +79,11 @@ When the game starts:
    ```
 
    Color names are case-insensitive. If you enter the wrong number of colors or an unknown color, you'll be asked to try again (it doesn't cost you a guess).
-3. The Code Maker responds with black and white key pegs. Use that feedback to refine your next guess.
-4. Keep guessing until you crack the code or run out of your 10 attempts.
+3. The Code Maker responds with key pegs: `●` for each peg of the right color in the right position, `○` for each right color in the wrong position, or `none`. Use that feedback to refine your next guess.
+4. After each guess, the board so far is shown as a table, with each code peg drawn as a colored `●` next to its color name.
+5. Keep guessing until you crack the code or run out of your 10 attempts.
+
+Colors appear in terminals that support them. When output is redirected, or the `NO_COLOR` environment variable is set, the game prints plain text, and the color names still say which peg is which.
 
 #### Debug mode (console app)
 

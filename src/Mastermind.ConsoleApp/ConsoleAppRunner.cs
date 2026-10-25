@@ -1,19 +1,19 @@
 ﻿using Mastermind.Core;
 
+using Spectre.Console;
+
 namespace Mastermind.ConsoleApp;
 
+// Output goes through Spectre.Console, which decides whether color is
+// possible (a redirected stream, NO_COLOR, or a console with no color support
+// gets plain text), so the runner never touches the process-global
+// Console colors itself.
 public sealed class ConsoleAppRunner(
     ISecretCodeGenerator secretCodeGenerator,
     TextReader input,
-    TextWriter output,
+    IAnsiConsole console,
     TextWriter error)
 {
-    // Console colors are process-global state this class does not own, so only
-    // touch them when our own writer is the one painting the terminal. A runner
-    // constructed with a StringWriter (tests, or any embedding host) writes its
-    // text elsewhere and must leave the terminal alone.
-    private readonly bool _useColor = ReferenceEquals(output, Console.Out) && !Console.IsOutputRedirected;
-
     public int Run(string[] args)
     {
         try
@@ -30,8 +30,12 @@ public sealed class ConsoleAppRunner(
     private const string CodeBreakerWinsMessage = "\n[~] Code Breaker wins!";
     private const string CodeMakerWinsMessage = "\n[^] Code Maker wins!";
     private const string QuitMessage = "\n[~] Thanks for playing!";
-    private const string BlackLegend = "[Black] = right color in the right position.";
-    private const string WhiteLegend = "[White] = right color in the wrong position.";
+
+    private static readonly string BlackLegend = $"{ToSymbol(KeyPeg.Black)} = right color in the right position.";
+    private static readonly string WhiteLegend = $"{ToSymbol(KeyPeg.White)} = right color in the wrong position.";
+
+    // Pads color names in the board so the pegs line up from row to row.
+    private static readonly int LongestColorName = Enum.GetNames<CodePeg>().Max(name => name.Length);
 
     private int _sessionBreakerWins;
     private int _sessionMakerWins;
@@ -43,7 +47,7 @@ public sealed class ConsoleAppRunner(
         ShowBanner();
         ShowCodePegColors();
         ShowLegend();
-        output.WriteLine($"\n[~] The Code Breaker plays by typing {BoardConfig.Standard.ShieldSize} colors separated by a blank space.");
+        WriteLine($"\n[~] The Code Breaker plays by typing {BoardConfig.Standard.ShieldSize} colors separated by a blank space.");
 
         do
         {
@@ -63,7 +67,7 @@ public sealed class ConsoleAppRunner(
                 _sessionMakerWins++;
             }
 
-            output.WriteLine($"\n[i] Score so far - Code Breaker {_sessionBreakerWins} : {_sessionMakerWins} Code Maker.");
+            WriteLine($"\n[i] Score so far - Code Breaker {_sessionBreakerWins} : {_sessionMakerWins} Code Maker.");
         }
         while (PromptPlayAgain());
 
@@ -72,7 +76,7 @@ public sealed class ConsoleAppRunner(
 
     private bool PromptPlayAgain()
     {
-        output.Write("\n[>] Play again? (y/n):\t");
+        Write("\n[>] Play again? (y/n):\t");
 
         var line = input.ReadLine();
         if (line is null) return false;
@@ -97,7 +101,7 @@ public sealed class ConsoleAppRunner(
                 {
                     RenderBoard(game.History);
                     RevealSecretCode(game.SecretCode);
-                    WriteLineColored(QuitMessage, ConsoleColor.Cyan);
+                    WriteLineColored(QuitMessage, Color.Aqua);
                     return GameOutcome.Abandoned;
                 }
 
@@ -106,81 +110,56 @@ public sealed class ConsoleAppRunner(
                 break;
             }
 
-            output.Write("[~] The Code Breaker has played:\n\t");
-
-            foreach (var color in codePlayed)
-            {
-                WriteColor(color);
-                output.Write(' ');
-            }
+            WriteLine("[~] The Code Breaker has played:");
+            WritePegs(codePlayed);
 
             var response = game.Guess(codePlayed);
 
-            output.Write("\n[^] The Code Maker has responded:\n\t");
-
-            for (var i = 0; i < response.BlackKeyPegs; i++)
-            {
-                WriteColor(KeyPeg.Black);
-                output.Write(' ');
-            }
-
-            for (var i = 0; i < response.WhiteKeyPegs; i++)
-            {
-                WriteColor(KeyPeg.White);
-                output.Write(' ');
-            }
-
-            output.WriteLine();
+            WriteLine("[^] The Code Maker has responded:");
+            WriteLine($"\t{KeyPegsText(response)}");
         }
 
         RenderBoard(game.History);
 
         if (game.Status is GameStatus.CodeBreakerWon)
         {
-            WriteLineColored(CodeBreakerWinsMessage, ConsoleColor.Green);
+            WriteLineColored(CodeBreakerWinsMessage, Color.Green);
             return GameOutcome.CodeBreakerWon;
         }
 
         RevealSecretCode(game.SecretCode);
-        WriteLineColored(CodeMakerWinsMessage, ConsoleColor.Red);
-        output.WriteLine("    Better luck next time!");
+        WriteLineColored(CodeMakerWinsMessage, Color.Red);
+        WriteLine("    Better luck next time!");
         return GameOutcome.CodeMakerWon;
     }
 
     private void RevealSecretCode(IReadOnlyList<CodePeg> secretCode)
     {
-        output.Write("\n[i] The secret code was:\n\t");
-        foreach (var color in secretCode)
-        {
-            WriteColor(color);
-            output.Write(' ');
-        }
-
-        output.WriteLine();
+        WriteLine("\n[i] The secret code was:");
+        WritePegs(secretCode);
     }
 
     private void ShowBanner()
     {
-        output.WriteLine("==============================");
-        output.WriteLine("    Welcome to MASTERMIND!");
-        output.WriteLine("==============================");
+        WriteLine("==============================");
+        WriteLine("    Welcome to MASTERMIND!");
+        WriteLine("==============================");
     }
 
     private void ShowLegend()
     {
-        output.WriteLine("\n[i] Feedback legend:");
-        output.WriteLine($"    {BlackLegend}");
-        output.WriteLine($"    {WhiteLegend}");
+        WriteLine("\n[i] Feedback legend:");
+        WriteLine($"    {BlackLegend}");
+        WriteLine($"    {WhiteLegend}");
     }
 
     private void ShowCodePegColors()
     {
         var codePegs = Enum.GetValues<CodePeg>();
-        output.WriteLine($"[i] There are Code Pegs with {codePegs.Length} different colors:");
+        WriteLine($"[i] There are Code Pegs with {codePegs.Length} different colors:");
         foreach (var color in codePegs)
         {
-            output.Write("\t");
-            WriteColor(color, true);
+            console.MarkupLine($"\t{PegMarkup(color)}");
         }
     }
 
@@ -191,21 +170,15 @@ public sealed class ConsoleAppRunner(
 
     private void ShowCodeMakerPlayed(IReadOnlyList<CodePeg> secretCode, bool isDebug)
     {
-        output.Write("[^] The Code Maker has played.\n\t");
+        WriteLine("[^] The Code Maker has played.");
 
         if (isDebug)
         {
-            foreach (var color in secretCode)
-            {
-                WriteColor(color);
-                output.Write(' ');
-            }
-
-            output.WriteLine();
+            WritePegs(secretCode);
         }
         else
         {
-            output.WriteLine("[X] [X] [X] [X]");
+            WriteLine("\t[X] [X] [X] [X]");
         }
     }
 
@@ -213,7 +186,7 @@ public sealed class ConsoleAppRunner(
     {
         while (true)
         {
-            output.Write($"\n[>] Code Breaker play {play}/{BoardConfig.Standard.TotalRows}:\t");
+            Write($"\n[>] Code Breaker play {play}/{BoardConfig.Standard.TotalRows}:\t");
 
             var line = input.ReadLine();
             if (line is null) return new BreakerTurn(BreakerAction.EndOfInput, null);
@@ -227,15 +200,15 @@ public sealed class ConsoleAppRunner(
                     continue;
                 }
 
-                output.WriteLine($"[!] Unknown command '{trimmed}'. Type /help to see the available commands.");
+                WriteLine($"[!] Unknown command '{trimmed}'. Type /help to see the available commands.");
                 continue;
             }
 
             var colors = trimmed.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
             if (colors.Length != BoardConfig.Standard.ShieldSize)
             {
-                output.WriteLine($"[!] The Code Breaker plays by typing {BoardConfig.Standard.ShieldSize} colors separated by a blank space.");
-                output.WriteLine($"    You entered {colors.Length} color(s); {BoardConfig.Standard.ShieldSize} are required.");
+                WriteLine($"[!] The Code Breaker plays by typing {BoardConfig.Standard.ShieldSize} colors separated by a blank space.");
+                WriteLine($"    You entered {colors.Length} color(s); {BoardConfig.Standard.ShieldSize} are required.");
                 continue;
             }
 
@@ -245,8 +218,8 @@ public sealed class ConsoleAppRunner(
             {
                 if (!Enum.TryParse<CodePeg>(color, ignoreCase: true, out var peg))
                 {
-                    output.WriteLine($"[!] The color {color} played is not a valid Code Peg color.");
-                    output.WriteLine($"    Valid colors: {string.Join(", ", GetCodePegColors())}.");
+                    WriteLine($"[!] The color {color} played is not a valid Code Peg color.");
+                    WriteLine($"    Valid colors: {string.Join(", ", GetCodePegColors())}.");
                     isValid = false;
                     break;
                 }
@@ -282,124 +255,86 @@ public sealed class ConsoleAppRunner(
     private void ShowHelp()
     {
         var shieldSize = BoardConfig.Standard.ShieldSize;
-        output.WriteLine($"\n[?] Mastermind - break the secret code of {shieldSize} colors within {BoardConfig.Standard.TotalRows} attempts.");
-        output.WriteLine($"    How to play: type {shieldSize} color names separated by spaces (for example: Red Blue Green Yellow).");
-        output.WriteLine($"    {BlackLegend}");
-        output.WriteLine($"    {WhiteLegend}");
-        output.WriteLine($"    Valid colors: {string.Join(", ", GetCodePegColors())}.");
-        output.WriteLine("    Commands: /help, /history, /quit.");
+        WriteLine($"\n[?] Mastermind - break the secret code of {shieldSize} colors within {BoardConfig.Standard.TotalRows} attempts.");
+        WriteLine($"    How to play: type {shieldSize} color names separated by spaces (for example: Red Blue Green Yellow).");
+        WriteLine($"    {BlackLegend}");
+        WriteLine($"    {WhiteLegend}");
+        WriteLine($"    Valid colors: {string.Join(", ", GetCodePegColors())}.");
+        WriteLine("    Commands: /help, /history, /quit.");
     }
 
     private void ShowSessionHistory()
     {
-        output.WriteLine($"\n[i] Session history - Code Breaker wins: {_sessionBreakerWins}, Code Maker wins: {_sessionMakerWins}.");
+        WriteLine($"\n[i] Session history - Code Breaker wins: {_sessionBreakerWins}, Code Maker wins: {_sessionMakerWins}.");
     }
-
-    private const int ColorCellWidth = 9;
 
     private void RenderBoard(IReadOnlyList<GuessRecord> history)
     {
         if (history.Count == 0) return;
 
-        output.WriteLine("\n[i] Board so far:");
-        output.Write("\t  #  ");
-        output.Write("Guess".PadRight(BoardConfig.Standard.ShieldSize * ColorCellWidth));
-        output.WriteLine("Result");
+        var board = new Table()
+            .Border(TableBorder.Simple)
+            .AddColumn(new TableColumn("#").RightAligned())
+            .AddColumn("Guess")
+            .AddColumn("Feedback");
 
-        for (var row = 0; row < history.Count; row++)
+        foreach (var (attempt, guess, response) in history)
         {
-            var (_, guess, response) = history[row];
-
-            output.Write($"\t{row + 1,3}  ");
-
-            foreach (var color in guess)
-            {
-                WriteColorCell(color);
-            }
-
-            for (var i = 0; i < response.BlackKeyPegs; i++)
-            {
-                WriteColor(KeyPeg.Black);
-                output.Write(' ');
-            }
-
-            for (var i = 0; i < response.WhiteKeyPegs; i++)
-            {
-                WriteColor(KeyPeg.White);
-                output.Write(' ');
-            }
-
-            output.WriteLine();
+            var pegs = string.Join("  ", guess.Select(color => PegMarkup(color, LongestColorName)));
+            board.AddRow(new Text(attempt.ToString()), new Markup(pegs), new Text(KeyPegsText(response)));
         }
+
+        WriteLine("\n[i] Board so far:");
+        console.Write(board);
     }
 
-    private void WriteColorCell(CodePeg color)
+    // Plain messages go straight to the console's writer instead of through
+    // Spectre's renderer, which would hard-wrap them at the console width (80
+    // columns when output is redirected), inserting line breaks the game never
+    // wrote. Only pegs, colored lines and the board are rendered by Spectre.
+    private void Write(string text) => console.Profile.Out.Writer.Write(text);
+
+    private void WriteLine(string text) => console.Profile.Out.Writer.WriteLine(text);
+
+    private void WritePegs(IEnumerable<CodePeg> pegs) =>
+        console.MarkupLine($"\t{string.Join("  ", pegs.Select(color => PegMarkup(color)))}");
+
+    private void WriteLineColored(string message, Color color) =>
+        console.MarkupLine($"[{color.ToMarkup()}]{Markup.Escape(message)}[/]");
+
+    // A code peg as a colored dot followed by its name, so it still reads
+    // without color (redirected output, NO_COLOR, color-blind players).
+    private static string PegMarkup(CodePeg color, int nameWidth = 0) =>
+        $"[{ToSpectreColor(color).ToMarkup()}]●[/] {color.ToString().PadRight(nameWidth)}";
+
+    // Key pegs need no color: filled and hollow dots tell them apart, and black
+    // text would vanish on a dark terminal.
+    private static string KeyPegsText(Response response)
     {
-        WriteColor(color);
-        var padding = ColorCellWidth - (color.ToString().Length + 2);
-        output.Write(new string(' ', Math.Max(1, padding)));
+        var pegs = Enumerable.Repeat(ToSymbol(KeyPeg.Black), response.BlackKeyPegs)
+            .Concat(Enumerable.Repeat(ToSymbol(KeyPeg.White), response.WhiteKeyPegs))
+            .ToList();
+        return pegs.Count == 0 ? "none" : string.Join(" ", pegs);
     }
 
-    private void WriteLineColored(string message, ConsoleColor color)
+    // Explicit peg maps. These switch expressions have no discard arm, so adding
+    // a CodePeg/KeyPeg member without a mapping fails the build (CS8509)
+    // instead of throwing at runtime.
+    private static Color ToSpectreColor(CodePeg color) => color switch
     {
-        if (_useColor)
-        {
-            Console.ForegroundColor = color;
-        }
-
-        output.WriteLine(message);
-
-        if (_useColor)
-        {
-            Console.ResetColor();
-        }
-    }
-
-    private void WriteColor(CodePeg color, bool newline = false) =>
-        WriteColorLabel(color.ToString(), ToConsoleColor(color), newline);
-
-    private void WriteColor(KeyPeg keyPeg) =>
-        WriteColorLabel(keyPeg.ToString(), ToConsoleColor(keyPeg), newline: false);
-
-    private void WriteColorLabel(string label, ConsoleColor color, bool newline)
-    {
-        if (_useColor)
-        {
-            Console.ForegroundColor = color;
-            Console.BackgroundColor = color != ConsoleColor.Black ? ConsoleColor.Black : ConsoleColor.White;
-        }
-
-        output.Write($"[{label}]");
-
-        // Reset to the terminal's own colors rather than a hardcoded
-        // gray-on-black, which used to repaint light-themed terminals for the
-        // rest of the session and leave them that way on exit.
-        if (_useColor)
-        {
-            Console.ResetColor();
-        }
-
-        if (newline) output.WriteLine();
-    }
-
-    // Explicit peg-to-console-color maps. These switch expressions have no
-    // discard arm, so adding a CodePeg/KeyPeg member without a mapping fails
-    // the build (CS8509) instead of throwing at runtime like the old
-    // name-based Enum.Parse<ConsoleColor> did.
-    private static ConsoleColor ToConsoleColor(CodePeg color) => color switch
-    {
-        CodePeg.Red => ConsoleColor.Red,
-        CodePeg.Blue => ConsoleColor.Blue,
-        CodePeg.Yellow => ConsoleColor.Yellow,
-        CodePeg.Green => ConsoleColor.Green,
-        CodePeg.White => ConsoleColor.White,
-        CodePeg.Black => ConsoleColor.Black,
+        CodePeg.Red => Color.Red,
+        CodePeg.Blue => Color.Blue,
+        CodePeg.Yellow => Color.Yellow,
+        CodePeg.Green => Color.Green,
+        CodePeg.White => Color.White,
+        // Grey rather than black, which would be invisible on a dark terminal.
+        CodePeg.Black => Color.Grey,
     };
 
-    private static ConsoleColor ToConsoleColor(KeyPeg keyPeg) => keyPeg switch
+    private static string ToSymbol(KeyPeg keyPeg) => keyPeg switch
     {
-        KeyPeg.Black => ConsoleColor.Black,
-        KeyPeg.White => ConsoleColor.White,
+        KeyPeg.Black => "●",
+        KeyPeg.White => "○",
     };
 
     // How a round ended. Abandoned is deliberately distinct from CodeMakerWon:
