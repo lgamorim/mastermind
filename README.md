@@ -47,6 +47,8 @@ Then open the printed localhost URL in your browser.
 4. The Code Maker responds with key pegs (black and white dots) on the right side of the row. Use that feedback to refine your next guess.
 5. Keep guessing until you crack the code or exhaust all 10 attempts. If you run out, the secret code is revealed.
 
+Your game is saved in the browser after every guess, so reloading the page or coming back later picks it up where you left off. Pegs placed but not yet submitted are not saved. **New Game** replaces the saved game.
+
 #### Debug mode (web app)
 
 To play with the secret code visible behind the shield, add `?debug=true` to the URL:

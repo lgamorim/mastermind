@@ -1,4 +1,5 @@
 ﻿using System.Linq;
+using System.Threading.Tasks;
 using Bunit;
 using FluentAssertions;
 using Mastermind.Core;
@@ -15,6 +16,8 @@ namespace Mastermind.WebApp.UnitTests;
 
 public class GameTests : BunitContext
 {
+    private const string SavedGameKey = "mastermind.savedGame.v1";
+
     private static readonly CodePeg[] SecretCode = [CodePeg.Red, CodePeg.Blue, CodePeg.Yellow, CodePeg.Green];
 
     // Production by default, as the published site runs: a static host sends no
@@ -28,6 +31,12 @@ public class GameTests : BunitContext
         Services.AddSingleton(secretCodeGenerator);
         Services.AddSingleton<GameStateService>();
         Services.AddSingleton<IWebAssemblyHostEnvironment>(_hostEnvironment);
+        Services.AddSingleton<SavedGameStore>();
+
+        // Loose: unplanned localStorage calls succeed with defaults, so getItem
+        // finds no save and setItem is accepted. Persistence tests set up the
+        // calls they care about explicitly.
+        JSInterop.Mode = JSRuntimeMode.Loose;
     }
 
     [Fact]
@@ -386,6 +395,102 @@ public class GameTests : BunitContext
 
         cut.FindAll(".shield-hole").Should().HaveCount(4);
         cut.FindAll(".shield-hole").Should().OnlyContain(hole => hole.ClassList.Count() == 1);
+    }
+
+    [Fact]
+    public void Should_RestoreTheSavedGame_When_ThePageFirstRenders()
+    {
+        JSInterop.Setup<string?>("localStorage.getItem", SavedGameKey)
+            .SetResult("""{"secretCode":["Red","Blue","Yellow","Green"],"guesses":[["Red","Yellow","White","White"]],"revealSecretFromStart":false}""");
+
+        var cut = Render<Game>();
+
+        cut.WaitForAssertion(() => cut.FindAll(".board-row.played").Should().HaveCount(1));
+        cut.FindAll(".board-placeholder").Should().BeEmpty();
+        cut.FindAll(".board-row.played .peg-hole").Select(peg => peg.ClassList.Last())
+            .Should().Equal("peg--red", "peg--yellow", "peg--white", "peg--white");
+        cut.FindAll(".drop-zone").Should().HaveCount(4);
+    }
+
+    [Fact]
+    public void Should_KeepThePlaceholder_When_TheSavedGameIsInvalid()
+    {
+        // Two guesses of the secret: the game ended at the first, so the save cannot be replayed.
+        JSInterop.Setup<string?>("localStorage.getItem", SavedGameKey)
+            .SetResult("""{"secretCode":["Red","Blue","Yellow","Green"],"guesses":[["Red","Blue","Yellow","Green"],["Red","Blue","Yellow","Green"]],"revealSecretFromStart":false}""");
+
+        var cut = Render<Game>();
+
+        cut.WaitForAssertion(() => JSInterop.VerifyInvoke("localStorage.getItem"));
+        cut.FindAll(".board-placeholder").Should().HaveCount(1);
+    }
+
+    [Fact]
+    public void Should_KeepThePlaceholder_When_TheSavedGameHasANullGuess()
+    {
+        JSInterop.Setup<string?>("localStorage.getItem", SavedGameKey)
+            .SetResult("""{"secretCode":["Red","Blue","Yellow","Green"],"guesses":[null],"revealSecretFromStart":false}""");
+
+        var cut = Render<Game>();
+
+        cut.WaitForAssertion(() => JSInterop.VerifyInvoke("localStorage.getItem"));
+        cut.FindAll(".board-placeholder").Should().HaveCount(1);
+    }
+
+    [Fact]
+    public async Task Should_KeepTheNewGame_When_TheSavedGameArrivesAfterItStarted()
+    {
+        var pendingLoad = JSInterop.Setup<string?>("localStorage.getItem", SavedGameKey);
+        var cut = Render<Game>();
+        cut.Find(".btn-new-game").Click();
+
+        pendingLoad.SetResult("""{"secretCode":["Red","Blue","Yellow","Green"],"guesses":[["Red","Yellow","White","White"]],"revealSecretFromStart":false}""");
+        // The page resumes after the load on the renderer's dispatcher; queue behind
+        // it so the assertion sees the outcome rather than racing it.
+        await cut.InvokeAsync(() => { });
+
+        cut.FindAll(".board-row.played").Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Should_SaveTheGame_When_ANewGameStarts()
+    {
+        var cut = Render<Game>();
+
+        cut.Find(".btn-new-game").Click();
+
+        var save = JSInterop.VerifyInvoke("localStorage.setItem");
+        save.Arguments[0].Should().Be(SavedGameKey);
+        save.Arguments[1].Should().Be("""{"secretCode":["Red","Blue","Yellow","Green"],"guesses":[],"revealSecretFromStart":false}""");
+    }
+
+    [Fact]
+    public void Should_SaveTheGuess_When_AGuessIsSubmitted()
+    {
+        var cut = Render<Game>();
+        cut.Find(".btn-new-game").Click();
+        cut.FindAll(".palette-peg")[0].DragStart();
+        for (var slot = 0; slot < SecretCode.Length; slot++)
+        {
+            cut.FindAll(".drop-zone")[slot].Drop();
+        }
+
+        cut.Find(".btn-submit").Click();
+
+        var saves = JSInterop.Invocations["localStorage.setItem"];
+        saves.Should().HaveCount(2);
+        saves[^1].Arguments[1].Should().Be("""{"secretCode":["Red","Blue","Yellow","Green"],"guesses":[["Red","Red","Red","Red"]],"revealSecretFromStart":false}""");
+    }
+
+    [Fact]
+    public void Should_NotSave_When_AGuessIsRejected()
+    {
+        var cut = Render<Game>();
+        cut.Find(".btn-new-game").Click();
+
+        cut.Find(".btn-submit").Click(); // empty holes: "fill every hole" error, nothing played
+
+        JSInterop.Invocations["localStorage.setItem"].Should().HaveCount(1);
     }
 
     // Debug arrives as a query parameter, so it is set by navigating rather than by passing

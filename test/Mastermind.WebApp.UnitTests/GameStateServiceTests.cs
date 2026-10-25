@@ -212,6 +212,124 @@ public class GameStateServiceTests
         gameStateService.RevealedSecretCode.Should().Equal(CodePeg.Red, CodePeg.Blue, CodePeg.Yellow, CodePeg.Green);
     }
 
+    [Fact]
+    public void Should_HaveNothingToSave_When_NoGameHasStarted()
+    {
+        var gameStateService = CreateGameStateService();
+
+        gameStateService.CreateSavedGame().Should().BeNull();
+    }
+
+    [Fact]
+    public void Should_CaptureTheSecretGuessesAndDebugReveal_When_ASavedGameIsCreated()
+    {
+        var gameStateService = CreateGameStateService();
+        gameStateService.IsDebugMode = true;
+        gameStateService.StartNewGame();
+        gameStateService.TrySubmitGuess([CodePeg.Red, CodePeg.Red, CodePeg.Red, CodePeg.Red], out _, out _);
+        gameStateService.TrySubmitGuess([CodePeg.White, CodePeg.Blue, CodePeg.White, CodePeg.White], out _, out _);
+
+        var savedGame = gameStateService.CreateSavedGame();
+
+        savedGame.Should().BeEquivalentTo(new
+        {
+            SecretCode,
+            Guesses = new[]
+            {
+                new[] { CodePeg.Red, CodePeg.Red, CodePeg.Red, CodePeg.Red },
+                new[] { CodePeg.White, CodePeg.Blue, CodePeg.White, CodePeg.White },
+            },
+            RevealSecretFromStart = true,
+        }, options => options.WithStrictOrdering());
+    }
+
+    [Fact]
+    public void Should_ReplayTheGuesses_When_ASavedGameInProgressIsRestored()
+    {
+        var gameStateService = CreateGameStateService();
+        var savedGame = new SavedGame(SecretCode, [[CodePeg.Red, CodePeg.Yellow, CodePeg.White, CodePeg.White]], RevealSecretFromStart: false);
+
+        var restored = gameStateService.TryRestore(savedGame);
+
+        restored.Should().BeTrue();
+        gameStateService.History.Should().ContainSingle();
+        gameStateService.History[0].Guess.Should().Equal(CodePeg.Red, CodePeg.Yellow, CodePeg.White, CodePeg.White);
+        gameStateService.History[0].Response.Should().Be(new Response(1, 1));
+        gameStateService.IsGameOver.Should().BeFalse();
+        gameStateService.RevealedSecretCode.Should().BeNull();
+    }
+
+    [Fact]
+    public void Should_RestoreTheOutcome_When_ASavedFinishedGameIsRestored()
+    {
+        var gameStateService = CreateGameStateService();
+        var savedGame = new SavedGame(SecretCode, [[CodePeg.White, CodePeg.White, CodePeg.White, CodePeg.White], SecretCode], RevealSecretFromStart: false);
+
+        gameStateService.TryRestore(savedGame);
+
+        gameStateService.IsGameOver.Should().BeTrue();
+        gameStateService.HasWon.Should().BeTrue();
+        gameStateService.RevealedSecretCode.Should().Equal(SecretCode);
+    }
+
+    [Fact]
+    public void Should_KeepRevealingTheSecret_When_ASavedDebugGameIsRestored()
+    {
+        var gameStateService = CreateGameStateService();
+
+        gameStateService.TryRestore(new SavedGame(SecretCode, [], RevealSecretFromStart: true));
+
+        gameStateService.RevealedSecretCode.Should().Equal(SecretCode);
+    }
+
+    [Fact]
+    public void Should_NotAskForANewSecret_When_ASavedGameIsRestored()
+    {
+        var secretCodeGenerator = CreateSecretCodeGenerator(SecretCode);
+        var gameStateService = new GameStateService(secretCodeGenerator);
+
+        gameStateService.TryRestore(new SavedGame([CodePeg.Black, CodePeg.Black, CodePeg.Black, CodePeg.Black], [], RevealSecretFromStart: false));
+
+        secretCodeGenerator.DidNotReceiveWithAnyArgs().Generate(default);
+    }
+
+    [Fact]
+    public void Should_PlayAgainstTheSavedSecret_When_AGuessFollowsARestore()
+    {
+        var gameStateService = CreateGameStateService();
+        gameStateService.TryRestore(new SavedGame([CodePeg.Black, CodePeg.Black, CodePeg.Black, CodePeg.Black], [], RevealSecretFromStart: false));
+
+        gameStateService.TrySubmitGuess([CodePeg.Black, CodePeg.Black, CodePeg.Black, CodePeg.Black], out _, out _);
+
+        gameStateService.HasWon.Should().BeTrue();
+    }
+
+    public static TheoryData<string, SavedGame> InvalidSavedGames => new()
+    {
+        { "secret too short", new SavedGame([CodePeg.Red, CodePeg.Blue], [], false) },
+        { "undefined secret peg", new SavedGame([CodePeg.Red, CodePeg.Blue, CodePeg.Yellow, (CodePeg)99], [], false) },
+        { "guess too long", new SavedGame(SecretCode, [[CodePeg.Red, CodePeg.Red, CodePeg.Red, CodePeg.Red, CodePeg.Red]], false) },
+        { "undefined guess peg", new SavedGame(SecretCode, [[CodePeg.Red, CodePeg.Red, CodePeg.Red, (CodePeg)(-1)]], false) },
+        { "guess after the win", new SavedGame(SecretCode, [SecretCode, SecretCode], false) },
+        // JSON's nullable checks cover properties, not array items, so "guesses":[null] gets this far.
+        { "null guess", new SavedGame(SecretCode, [null!], false) },
+    };
+
+    [Theory]
+    [MemberData(nameof(InvalidSavedGames))]
+    public void Should_RejectTheSaveAndKeepTheCurrentGame_When_ASavedGameIsInvalid(string scenario, SavedGame savedGame)
+    {
+        var gameStateService = CreateGameStateService();
+        gameStateService.StartNewGame();
+        gameStateService.TrySubmitGuess([CodePeg.Red, CodePeg.Red, CodePeg.Red, CodePeg.Red], out _, out _);
+
+        var restored = gameStateService.TryRestore(savedGame);
+
+        restored.Should().BeFalse(scenario);
+        gameStateService.History.Should().ContainSingle(scenario);
+        gameStateService.IsGameOver.Should().BeFalse(scenario);
+    }
+
     private static GameStateService CreateGameStateService()
     {
         return new GameStateService(CreateSecretCodeGenerator(SecretCode));

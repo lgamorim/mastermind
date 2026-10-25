@@ -27,6 +27,10 @@ public partial class Game
     [Inject]
     private IWebAssemblyHostEnvironment HostEnvironment { get; set; } = default!;
 
+    // default!: assigned by the framework before use, as GameState above.
+    [Inject]
+    private SavedGameStore GameStore { get; set; } = default!;
+
     private bool GameStarted => _guessSlots.Length > 0;
 
     private bool AllSlotsFilled => _guessSlots.Length > 0 && _guessSlots.All(slot => slot is not null);
@@ -55,14 +59,47 @@ public partial class Game
         return dots;
     }
 
-    private void StartNewGame()
+    // localStorage is reached through JS interop, which is only available once
+    // the page has rendered, so the saved game is picked up here rather than in
+    // OnInitialized.
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        var savedGame = await GameStore.LoadAsync();
+
+        // The player may have clicked New Game while the save was loading; the
+        // game they just started wins over the old one.
+        if (savedGame is null || GameStarted || !GameState.TryRestore(savedGame)) return;
+
+        ResetBoardInput();
+
+        // Restored outside any event handler, so Blazor does not re-render on its own.
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task StartNewGame()
     {
         GameState.StartNewGame();
+        ResetBoardInput();
+        await SaveGameAsync();
+    }
+
+    private void ResetBoardInput()
+    {
         _guessSlots = new CodePeg?[GameState.BoardConfig.ShieldSize];
         _submitError = null;
         _draggedColor = null;
         _selectedColor = null;
         _dragOverSlot = null;
+    }
+
+    private async Task SaveGameAsync()
+    {
+        if (GameState.CreateSavedGame() is { } savedGame)
+        {
+            await GameStore.SaveAsync(savedGame);
+        }
     }
 
     // Tapping is the only way in on a touch device, where HTML5 drag events are
@@ -123,7 +160,7 @@ public partial class Game
         _submitError = null;
     }
 
-    private void SubmitGuess()
+    private async Task SubmitGuess()
     {
         // The disabled Submit button is UX only -- it is the caller's courtesy,
         // not a guarantee. Without this guard an empty slot throws out of
@@ -145,6 +182,7 @@ public partial class Game
             _draggedColor = null;
             _selectedColor = null;
             _dragOverSlot = null;
+            await SaveGameAsync();
         }
         else
         {

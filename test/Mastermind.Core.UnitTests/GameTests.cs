@@ -45,7 +45,7 @@ public class GameTests
     public void Should_ThrowArgumentNullException_When_GeneratorIsNull()
     {
         // null! deliberately breaks the non-nullable contract: rejecting null is what this test checks.
-        var action = new Action(() => new Game(null!));
+        var action = new Action(() => new Game((ISecretCodeGenerator)null!));
 
         action.Should().ThrowExactly<ArgumentNullException>();
     }
@@ -68,6 +68,50 @@ public class GameTests
         var action = new Action(() => new Game(new FixedSecretCodeGenerator(new CodePeg[length])));
 
         action.Should().ThrowExactly<ArgumentException>();
+    }
+
+    [Fact]
+    public void Should_StartInProgressWithTheGivenSecret_When_CreatedFromASecretCode()
+    {
+        var game = new Game([Black, Black, Green, White]);
+
+        game.SecretCode.Should().Equal(Black, Black, Green, White);
+        game.BoardConfig.Should().Be(BoardConfig.Standard);
+        game.Status.Should().Be(GameStatus.InProgress);
+        game.History.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Should_ThrowArgumentNullException_When_TheSecretCodeIsNull()
+    {
+        // null! deliberately breaks the non-nullable contract: rejecting null is what this test checks.
+        var action = new Action(() => new Game((CodePeg[])null!));
+
+        action.Should().ThrowExactly<ArgumentNullException>();
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(3)]
+    [InlineData(5)]
+    public void Should_ThrowArgumentException_When_TheSecretCodeHasTheWrongLength(int length)
+    {
+        var action = new Action(() => new Game(new CodePeg[length]));
+
+        action.Should().ThrowExactly<ArgumentException>();
+    }
+
+    [Fact]
+    public void Should_KeepTheOriginalSecret_When_TheSecretCodeArrayIsModifiedAfterCreation()
+    {
+        var secretCode = new[] { Red, Blue, Yellow, Green };
+        var game = new Game(secretCode);
+
+        secretCode[0] = Black;
+        game.Guess([Red, Blue, Yellow, Green]);
+
+        game.Status.Should().Be(GameStatus.CodeBreakerWon);
+        game.SecretCode.Should().Equal(Red, Blue, Yellow, Green);
     }
 
     [Fact]

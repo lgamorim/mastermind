@@ -53,4 +53,39 @@ public sealed class GameStateService(ISecretCodeGenerator secretCodeGenerator)
         error = null;
         return true;
     }
+
+    public SavedGame? CreateSavedGame() =>
+        _game is null
+            ? null
+            : new SavedGame([.. _game.SecretCode], [.. _game.History.Select(record => record.Guess.ToArray())], _revealSecretFromStart);
+
+    // A save comes from browser storage, which the player can edit, so it is
+    // validated rather than trusted: every code must be present (JSON's
+    // nullable checks stop at the properties, not the array items) and every
+    // peg a real color (the enum would otherwise index past the board's color
+    // counts), and replaying the guesses through Game rejects wrong lengths and
+    // guesses after the end. A rejected save leaves the current game untouched.
+    public bool TryRestore(SavedGame savedGame)
+    {
+        if (!savedGame.Guesses.Prepend(savedGame.SecretCode).All(code => code is not null && code.All(Enum.IsDefined)))
+            return false;
+
+        Game game;
+        try
+        {
+            game = new Game(savedGame.SecretCode);
+            foreach (var guess in savedGame.Guesses)
+            {
+                game.Guess(guess);
+            }
+        }
+        catch (Exception exception) when (exception is ArgumentException or InvalidOperationException)
+        {
+            return false;
+        }
+
+        _game = game;
+        _revealSecretFromStart = savedGame.RevealSecretFromStart;
+        return true;
+    }
 }

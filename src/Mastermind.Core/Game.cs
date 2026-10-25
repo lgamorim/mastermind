@@ -20,13 +20,20 @@ public sealed class Game
     /// </exception>
     /// <exception cref="ArgumentException">The generated code does not have one peg per shield hole.</exception>
     public Game(ISecretCodeGenerator secretCodeGenerator)
+        : this(GenerateSecretCode(secretCodeGenerator))
     {
-        ArgumentNullException.ThrowIfNull(secretCodeGenerator);
+    }
 
-        // Copy what the generator hands back: a generator that reuses its buffer
-        // must not be able to change this game's code afterwards.
-        var secretCode = secretCodeGenerator.Generate(BoardConfig.ShieldSize);
-        ArgumentNullException.ThrowIfNull(secretCode, nameof(secretCodeGenerator));
+    /// <summary>Starts a game with a known secret code, such as one being restored.</summary>
+    /// <param name="secretCode">The secret code; it must have one peg per shield hole.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="secretCode"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="secretCode"/> does not have one peg per shield hole.</exception>
+    public Game(CodePeg[] secretCode)
+    {
+        ArgumentNullException.ThrowIfNull(secretCode);
+
+        // Copy what the caller hands in: a caller (or generator) that reuses its
+        // buffer must not be able to change this game's code afterwards.
         _decodingBoard.PlayCodeMaker(new Shield(secretCode));
 
         SecretCode = ReadOnlySnapshot(secretCode);
@@ -73,6 +80,15 @@ public sealed class Game
         }
 
         return response;
+    }
+
+    private static CodePeg[] GenerateSecretCode(ISecretCodeGenerator secretCodeGenerator)
+    {
+        ArgumentNullException.ThrowIfNull(secretCodeGenerator);
+
+        var secretCode = secretCodeGenerator.Generate(BoardConfig.Standard.ShieldSize);
+        ArgumentNullException.ThrowIfNull(secretCode, nameof(secretCodeGenerator));
+        return secretCode;
     }
 
     // Defensive copy exposed as a read-only view, so callers can neither mutate
