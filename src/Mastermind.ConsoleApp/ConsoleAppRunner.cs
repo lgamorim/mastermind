@@ -1,4 +1,6 @@
-﻿using Mastermind.Core;
+﻿using System.Globalization;
+
+using Mastermind.Core;
 
 using Spectre.Console;
 
@@ -39,6 +41,10 @@ public sealed class ConsoleAppRunner(
 
     private int _sessionBreakerWins;
     private int _sessionMakerWins;
+
+    // Off by default so the classic game stays unaided; /coach switches it for the
+    // rest of the session, across rounds.
+    private bool _coachOn;
 
     private int RunGame(string[] args)
     {
@@ -94,7 +100,7 @@ public sealed class ConsoleAppRunner(
         {
             RenderBoard(game.History);
 
-            var turn = PlayCodeBreaker(game.History.Count + 1);
+            var turn = PlayCodeBreaker(game.History);
             if (turn.Code is not { } codePlayed)
             {
                 if (turn.Action is BreakerAction.Quit)
@@ -117,6 +123,8 @@ public sealed class ConsoleAppRunner(
 
             WriteLine("[^] The Code Maker has responded:");
             WriteLine($"\t{KeyPegsText(response)}");
+
+            if (_coachOn) ShowCoaching(game.History);
         }
 
         RenderBoard(game.History);
@@ -182,8 +190,10 @@ public sealed class ConsoleAppRunner(
         }
     }
 
-    private BreakerTurn PlayCodeBreaker(int play)
+    private BreakerTurn PlayCodeBreaker(IReadOnlyList<GuessRecord> history)
     {
+        var play = history.Count + 1;
+
         while (true)
         {
             Write($"\n[>] Code Breaker play {play}/{BoardConfig.Standard.TotalRows}:\t");
@@ -194,7 +204,7 @@ public sealed class ConsoleAppRunner(
             var trimmed = line.Trim();
             if (trimmed.StartsWith('/'))
             {
-                if (TryRunCommand(trimmed, out var quit))
+                if (TryRunCommand(trimmed, history, out var quit))
                 {
                     if (quit) return new BreakerTurn(BreakerAction.Quit, null);
                     continue;
@@ -231,7 +241,7 @@ public sealed class ConsoleAppRunner(
         }
     }
 
-    private bool TryRunCommand(string command, out bool quit)
+    private bool TryRunCommand(string command, IReadOnlyList<GuessRecord> history, out bool quit)
     {
         quit = false;
         switch (command.ToLowerInvariant())
@@ -247,6 +257,9 @@ public sealed class ConsoleAppRunner(
             case "/history":
                 ShowSessionHistory();
                 return true;
+            case "/coach":
+                ToggleCoach(history);
+                return true;
             default:
                 return false;
         }
@@ -260,13 +273,37 @@ public sealed class ConsoleAppRunner(
         WriteLine($"    {BlackLegend}");
         WriteLine($"    {WhiteLegend}");
         WriteLine($"    Valid colors: {string.Join(", ", GetCodePegColors())}.");
-        WriteLine("    Commands: /help, /history, /quit.");
+        WriteLine("    Commands: /help, /history, /coach, /quit.");
     }
 
     private void ShowSessionHistory()
     {
         WriteLine($"\n[i] Session history - Code Breaker wins: {_sessionBreakerWins}, Code Maker wins: {_sessionMakerWins}.");
     }
+
+    private void ToggleCoach(IReadOnlyList<GuessRecord> history)
+    {
+        _coachOn = !_coachOn;
+        WriteLine(_coachOn ? $"[c] Coach on. {CodesMessage(Coach.Review(history))}" : "[c] Coach off.");
+    }
+
+    private void ShowCoaching(IReadOnlyList<GuessRecord> history)
+    {
+        var notes = Coach.Review(history);
+        WriteLine($"[c] {CodesMessage(notes)}");
+
+        if (notes[^1].ContradictedAttempt is { } earlier)
+        {
+            WriteLine($"[c] That guess couldn't have been the code: it contradicts the feedback on guess {earlier}.");
+        }
+    }
+
+    private static string CodesMessage(IReadOnlyList<CoachNote> notes) => notes.Count switch
+    {
+        0 => $"{Coach.TotalCodes.ToString("N0", CultureInfo.InvariantCulture)} codes are possible.",
+        _ when notes[^1].CodesRemaining == 1 => "1 code still fits the feedback.",
+        _ => $"{notes[^1].CodesRemaining.ToString("N0", CultureInfo.InvariantCulture)} codes still fit the feedback.",
+    };
 
     private void RenderBoard(IReadOnlyList<GuessRecord> history)
     {

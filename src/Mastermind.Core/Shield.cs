@@ -1,9 +1,11 @@
 ﻿using System;
+using System.Collections;
+using System.Collections.Generic;
 
 namespace Mastermind.Core;
 
 /// <summary>The secret code placed by the code maker, hidden behind the board's shield.</summary>
-public class Shield
+public class Shield : IReadOnlyList<CodePeg>
 {
     private readonly CodePeg[] _colors;
 
@@ -34,4 +36,10 @@ public class Shield
     {
         return this[index] == color;
     }
+
+    /// <summary>Enumerates the secret code's pegs in order.</summary>
+    /// <returns>An enumerator over the pegs.</returns>
+    public IEnumerator<CodePeg> GetEnumerator() => ((IEnumerable<CodePeg>)_colors).GetEnumerator();
+
+    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }

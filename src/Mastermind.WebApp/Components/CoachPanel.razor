@@ -1,0 +1,25 @@
+@using System.Globalization
+
+@* role="status" so screen readers announce each new count without moving focus. *@
+<div class="coach" role="status">
+    <p class="coach-count">@CountMessage()</p>
+    @if (Latest is { ContradictedAttempt: { } contradicted } latest)
+    {
+        <p class="coach-warning">Guess @latest.Attempt couldn't have been the code: it contradicts the feedback on guess @contradicted.</p>
+    }
+</div>
+
+@code {
+    // One note per played guess, oldest first, as Coach.Review returns them.
+    [Parameter, EditorRequired]
+    public IReadOnlyList<CoachNote> Notes { get; set; } = [];
+
+    private CoachNote? Latest => Notes.Count > 0 ? Notes[^1] : null;
+
+    private string CountMessage() => Latest switch
+    {
+        null => $"{Coach.TotalCodes.ToString("N0", CultureInfo.InvariantCulture)} codes are possible.",
+        { CodesRemaining: 1 } => "1 code still fits the feedback.",
+        { CodesRemaining: var count } => $"{count.ToString("N0", CultureInfo.InvariantCulture)} codes still fit the feedback.",
+    };
+}

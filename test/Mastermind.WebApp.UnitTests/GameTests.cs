@@ -593,6 +593,73 @@ public class GameTests : BunitContext
         PlayedTile(cut).Should().Be("0");
     }
 
+    [Fact]
+    public void Should_KeepTheCoachOff_When_AGameStarts()
+    {
+        var cut = Render<Game>();
+
+        cut.Find(".btn-new-game").Click();
+
+        cut.Find(".coach-toggle input").HasAttribute("checked").Should().BeFalse();
+        cut.FindAll(".coach").Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Should_ShowTheCoach_When_ItIsSwitchedOn()
+    {
+        var cut = Render<Game>();
+        cut.Find(".btn-new-game").Click();
+
+        cut.Find(".coach-toggle input").Change(true);
+
+        cut.Find(".coach-count").TextContent.Should().Be("1,296 codes are possible.");
+    }
+
+    [Fact]
+    public void Should_FlagTheRowAndExplain_When_ACoachedGuessContradictsEarlierFeedback()
+    {
+        // Secret is Red Blue Yellow Green: four Reds score one black, so four Blues cannot be the code.
+        var cut = Render<Game>();
+        cut.Find(".btn-new-game").Click();
+        cut.Find(".coach-toggle input").Change(true);
+        PlayGuess(cut, [CodePeg.Red, CodePeg.Red, CodePeg.Red, CodePeg.Red]);
+
+        PlayGuess(cut, [CodePeg.Blue, CodePeg.Blue, CodePeg.Blue, CodePeg.Blue]);
+
+        var flagged = cut.FindAll(".board-row.contradicted");
+        flagged.Should().ContainSingle();
+        // Read into a variable first: a missing row number yields null, which fails the
+        // assertion instead of skipping it the way ?.Should() would.
+        var rowNumber = flagged[0].QuerySelector(".row-number")?.TextContent;
+        rowNumber.Should().Contain("2").And.Contain("contradicts guess 1");
+        cut.Find(".coach-warning").TextContent.Should().Contain("Guess 2 couldn't have been the code");
+    }
+
+    [Fact]
+    public void Should_FlagNothing_When_TheCoachIsOff()
+    {
+        var cut = Render<Game>();
+        cut.Find(".btn-new-game").Click();
+        PlayGuess(cut, [CodePeg.Red, CodePeg.Red, CodePeg.Red, CodePeg.Red]);
+
+        PlayGuess(cut, [CodePeg.Blue, CodePeg.Blue, CodePeg.Blue, CodePeg.Blue]);
+
+        cut.FindAll(".board-row.contradicted").Should().BeEmpty();
+        cut.FindAll(".coach").Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Should_HideTheCoach_When_ItIsSwitchedOffAgain()
+    {
+        var cut = Render<Game>();
+        cut.Find(".btn-new-game").Click();
+        cut.Find(".coach-toggle input").Change(true);
+
+        cut.Find(".coach-toggle input").Change(false);
+
+        cut.FindAll(".coach").Should().BeEmpty();
+    }
+
     private static string? PlayedTile(IRenderedComponent<Game> cut) =>
         cut.FindAll(".stat").Single(tile => tile.QuerySelector("dt")?.TextContent == "Played").QuerySelector("dd")?.TextContent;
 

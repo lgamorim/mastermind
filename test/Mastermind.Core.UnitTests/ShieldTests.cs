@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using FluentAssertions;
 using Xunit;
 using static Mastermind.Core.CodePeg;
@@ -99,5 +100,13 @@ public class ShieldTests
         var shield = new Shield(Colors);
 
         shield.HasColorAt(index, color).Should().BeFalse();
+    }
+
+    [Fact]
+    public void Should_EnumerateItsPegsInOrder_When_ReadAsAList()
+    {
+        IReadOnlyList<CodePeg> shield = new Shield(Colors);
+
+        shield.Should().Equal(Colors);
     }
 }

@@ -477,6 +477,78 @@ public class GameStateServiceTests
         gameStateService.Stats.Wins.Should().Be(1);
     }
 
+    [Fact]
+    public void Should_HaveNoCoachNotes_When_NoGameHasStarted()
+    {
+        var gameStateService = CreateGameStateService();
+
+        var coachNotes = gameStateService.CoachNotes;
+
+        coachNotes.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Should_KeepTheCoachNotes_When_ASavedGameIsRejected()
+    {
+        var gameStateService = CreateGameStateService();
+        gameStateService.StartNewGame();
+        gameStateService.TrySubmitGuess([CodePeg.Red, CodePeg.Red, CodePeg.Red, CodePeg.Red], out _, out _);
+        var notesBefore = gameStateService.CoachNotes;
+
+        // A guess after the winning one cannot be replayed, so the save is rejected.
+        gameStateService.TryRestore(new SavedGame(SecretCode, [SecretCode, SecretCode], RevealSecretFromStart: false));
+
+        gameStateService.CoachNotes.Should().BeSameAs(notesBefore);
+    }
+
+    [Fact]
+    public void Should_ReviewEveryPlayedGuess_When_GuessesAreSubmitted()
+    {
+        var gameStateService = CreateGameStateService();
+        gameStateService.StartNewGame();
+        gameStateService.TrySubmitGuess([CodePeg.Red, CodePeg.Red, CodePeg.Red, CodePeg.Red], out _, out _);
+
+        gameStateService.TrySubmitGuess([CodePeg.Blue, CodePeg.Blue, CodePeg.Blue, CodePeg.Blue], out _, out _);
+
+        gameStateService.CoachNotes.Should().Equal(Coach.Review(gameStateService.History));
+        gameStateService.CoachNotes[1].ContradictedAttempt.Should().Be(1);
+    }
+
+    [Fact]
+    public void Should_KeepTheCoachNotes_When_AGuessIsRejected()
+    {
+        var gameStateService = CreateGameStateService();
+        gameStateService.StartNewGame();
+        gameStateService.TrySubmitGuess([CodePeg.Red, CodePeg.Red, CodePeg.Red, CodePeg.Red], out _, out _);
+
+        gameStateService.TrySubmitGuess([CodePeg.Red], out _, out _);
+
+        gameStateService.CoachNotes.Should().ContainSingle();
+    }
+
+    [Fact]
+    public void Should_ClearTheCoachNotes_When_ANewGameStarts()
+    {
+        var gameStateService = CreateGameStateService();
+        gameStateService.StartNewGame();
+        gameStateService.TrySubmitGuess([CodePeg.Red, CodePeg.Red, CodePeg.Red, CodePeg.Red], out _, out _);
+
+        gameStateService.StartNewGame();
+
+        gameStateService.CoachNotes.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Should_ReviewTheRestoredGuesses_When_ASavedGameIsRestored()
+    {
+        var gameStateService = CreateGameStateService();
+
+        gameStateService.TryRestore(new SavedGame(SecretCode, [[CodePeg.White, CodePeg.White, CodePeg.White, CodePeg.White]], RevealSecretFromStart: false));
+
+        // Four Whites scored nothing, so White is nowhere: 5 colors in each of 4 holes.
+        gameStateService.CoachNotes.Should().ContainSingle().Which.CodesRemaining.Should().Be(625);
+    }
+
     private static GameStateService CreateGameStateService()
     {
         return new GameStateService(CreateSecretCodeGenerator(SecretCode));

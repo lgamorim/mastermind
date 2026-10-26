@@ -29,6 +29,10 @@ public sealed class GameStateService(ISecretCodeGenerator secretCodeGenerator)
     // storage records nothing, so a reload cannot count it again.
     public GameStats Stats { get; private set; } = GameStats.Empty;
 
+    // Reviewed once per change to the history rather than on every render; the
+    // page shows the notes only when the player has the coach switched on.
+    public IReadOnlyList<CoachNote> CoachNotes { get; private set; } = [];
+
     private bool CountsTowardStats => !_revealSecretFromStart;
 
     public void StartNewGame()
@@ -41,6 +45,7 @@ public sealed class GameStateService(ISecretCodeGenerator secretCodeGenerator)
         }
 
         _game = new Game(secretCodeGenerator);
+        CoachNotes = [];
         _revealSecretFromStart = IsDebugMode;
     }
 
@@ -74,6 +79,7 @@ public sealed class GameStateService(ISecretCodeGenerator secretCodeGenerator)
             };
         }
 
+        CoachNotes = Coach.Review(_game.History);
         error = null;
         return true;
     }
@@ -117,6 +123,7 @@ public sealed class GameStateService(ISecretCodeGenerator secretCodeGenerator)
         }
 
         _game = game;
+        CoachNotes = Coach.Review(game.History);
         _revealSecretFromStart = savedGame.RevealSecretFromStart;
         return true;
     }

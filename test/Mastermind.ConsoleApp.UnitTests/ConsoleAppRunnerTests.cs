@@ -457,6 +457,108 @@ public class ConsoleAppRunnerTests
             "    How to play: type 4 color names separated by spaces (for example: Red Blue Green Yellow)." + Environment.NewLine);
     }
 
+    [Fact]
+    public void Should_NotCoach_When_TheCoachIsOff()
+    {
+        var input = string.Join(Environment.NewLine, "Red Red Red Red", "Red Blue Yellow Green");
+        var output = new StringWriter();
+        var runner = CreateRunner(input: input, output: output);
+
+        runner.Run([]);
+
+        output.ToString().Should().NotContain("[c]");
+    }
+
+    [Fact]
+    public void Should_SayHowManyCodesArePossible_When_TheCoachIsTurnedOnBeforeAGuess()
+    {
+        var input = string.Join(Environment.NewLine, "/coach", "Red Blue Yellow Green");
+        var output = new StringWriter();
+        var runner = CreateRunner(input: input, output: output);
+
+        runner.Run([]);
+
+        output.ToString().Should().Contain("[c] Coach on. 1,296 codes are possible.");
+    }
+
+    [Fact]
+    public void Should_SayHowManyCodesStillFit_When_ACoachedGuessIsScored()
+    {
+        // Secret is Red Blue Yellow Green: four Reds score one black, which leaves the codes
+        // with exactly one Red (4 places for it, 5 colors for each other hole).
+        var input = string.Join(Environment.NewLine, "/coach", "Red Red Red Red", "Red Blue Yellow Green");
+        var output = new StringWriter();
+        var runner = CreateRunner(input: input, output: output);
+
+        runner.Run([]);
+
+        output.ToString().Should().Contain("[c] 500 codes still fit the feedback.");
+        output.ToString().Should().Contain("[c] 1 code still fits the feedback.");
+    }
+
+    [Fact]
+    public void Should_WarnAboutTheContradiction_When_ACoachedGuessCouldNotHaveBeenTheCode()
+    {
+        var input = string.Join(Environment.NewLine, "/coach", "Red Red Red Red", "Blue Blue Blue Blue", "Red Blue Yellow Green");
+        var output = new StringWriter();
+        var runner = CreateRunner(input: input, output: output);
+
+        runner.Run([]);
+
+        output.ToString().Should().Contain("[c] That guess couldn't have been the code: it contradicts the feedback on guess 1.");
+        CountOccurrences(output.ToString(), "couldn't have been the code").Should().Be(1);
+    }
+
+    [Fact]
+    public void Should_StopCoaching_When_TheCoachIsTurnedOffAgain()
+    {
+        var input = string.Join(Environment.NewLine, "/coach", "/coach", "Red Red Red Red", "Red Blue Yellow Green");
+        var output = new StringWriter();
+        var runner = CreateRunner(input: input, output: output);
+
+        runner.Run([]);
+
+        output.ToString().Should().Contain("[c] Coach off.");
+        output.ToString().Should().NotContain("codes still fit");
+    }
+
+    [Fact]
+    public void Should_KeepCoaching_When_ANewRoundStarts()
+    {
+        var input = string.Join(Environment.NewLine, "/coach", "Red Blue Yellow Green", "y", "Red Red Red Red", "Red Blue Yellow Green", "n");
+        var output = new StringWriter();
+        var runner = CreateRunner(input: input, output: output);
+
+        runner.Run([]);
+
+        output.ToString().Should().Contain("[c] 500 codes still fit the feedback.");
+    }
+
+    [Fact]
+    public void Should_NotUseAnAttempt_When_TheCoachCommandIsEntered()
+    {
+        var input = string.Join(Environment.NewLine, "/coach", "Red Blue Yellow Green");
+        var output = new StringWriter();
+        var runner = CreateRunner(input: input, output: output);
+
+        runner.Run([]);
+
+        CountOccurrences(output.ToString(), "Code Breaker play 1/10").Should().Be(2);
+        output.ToString().Should().NotContain("Code Breaker play 2/10");
+    }
+
+    [Fact]
+    public void Should_ListTheCoachCommand_When_HelpIsShown()
+    {
+        var input = string.Join(Environment.NewLine, "/help", "Red Blue Yellow Green");
+        var output = new StringWriter();
+        var runner = CreateRunner(input: input, output: output);
+
+        runner.Run([]);
+
+        output.ToString().Should().Contain("Commands: /help, /history, /coach, /quit.");
+    }
+
     private static ConsoleAppRunner CreateRunner(string input, TextWriter output)
     {
         return new ConsoleAppRunner(

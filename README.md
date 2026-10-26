@@ -51,6 +51,10 @@ Your game is saved in the browser after every guess, so reloading the page or co
 
 Below the board, **Statistics** tracks your games in the same browser: games played, win rate, your current and best winning streaks, and a chart of how many guesses each win took. Starting a new game while one with guesses is still in progress counts as a loss. Games played in debug mode are not counted. Use **Hide statistics** under the board to collapse the panel, and **Show statistics** to bring it back.
 
+#### Coach (web app)
+
+Tick **Coach** above the board for feedback on your deduction. A line under the board says how many of the 1,296 possible codes still fit the feedback so far. If a guess could not have been the code, given what earlier feedback proved, the coach says which earlier guess it contradicts and marks the row's number in amber. The coach never reveals which codes remain, and coached games count toward your statistics.
+
 #### Debug mode (web app)
 
 To play with the secret code visible behind the shield, add `?debug=true` to the URL:
@@ -84,6 +88,8 @@ When the game starts:
 5. Keep guessing until you crack the code or run out of your 10 attempts.
 
 Colors appear in terminals that support them. When output is redirected, or the `NO_COLOR` environment variable is set, the game prints plain text, and the color names still say which peg is which.
+
+Type `/coach` at any prompt to turn the coach on or off for the rest of the session. After each guess it prints how many codes still fit the feedback, and warns when a guess could not have been the code given earlier feedback. Typing `/coach` doesn't use up a guess.
 
 #### Debug mode (console app)
 

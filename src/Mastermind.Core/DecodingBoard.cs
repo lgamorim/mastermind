@@ -58,31 +58,7 @@ public class DecodingBoard
         if (code.Length != Shield.Count)
             throw new ArgumentException($"Code must have exactly {Shield.Count} pegs.", nameof(code));
 
-        var colorCount = Enum.GetValues<CodePeg>().Length;
-        var secretCounts = new int[colorCount];
-        var codeCounts = new int[colorCount];
-
-        var blackKeyPegs = 0;
-        for (var i = 0; i < code.Length; i++)
-        {
-            if (Shield.HasColorAt(i, code[i]))
-            {
-                blackKeyPegs++;
-            }
-            else
-            {
-                secretCounts[(int)Shield[i]]++;
-                codeCounts[(int)code[i]]++;
-            }
-        }
-
-        var whiteKeyPegs = 0;
-        for (var i = 0; i < colorCount; i++)
-        {
-            whiteKeyPegs += Math.Min(secretCounts[i], codeCounts[i]);
-        }
-
-        return new Response(blackKeyPegs, whiteKeyPegs);
+        return Response.Score(Shield, code);
     }
 
     /// <summary>Determines whether a response represents a fully solved code (all black key pegs).</summary>

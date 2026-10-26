@@ -8,6 +8,10 @@
         <button class="btn-new-game" @onclick="StartNewGame">New Game</button>
     </div>
 
+    <div class="game-options">
+        <label class="coach-toggle"><input type="checkbox" @bind="_coachOn" /> Coach</label>
+    </div>
+
     @if (!GameStarted)
     {
         <div class="board-placeholder">
@@ -41,9 +45,15 @@
                     var ri = rowIndex;
                     var isPlayed = ri < GameState.History.Count;
                     var isActive = ri == GameState.History.Count && !GameState.IsGameOver;
+                    var contradicts = _coachOn && isPlayed ? GameState.CoachNotes[ri].ContradictedAttempt : null;
 
-                    <div class="board-row @(isActive ? "active" : "") @(isPlayed ? "played" : "")">
-                        <span class="row-number">@(ri + 1)</span>
+                    <div class="board-row @(isActive ? "active" : "") @(isPlayed ? "played" : "") @(contradicts is not null ? "contradicted" : "")">
+                        <span class="row-number" title="@(contradicts is null ? null : $"Couldn't have been the code: contradicts guess {contradicts}")">
+                            @(ri + 1)@if (contradicts is { } earlier)
+                            {
+                                <span class="visually-hidden">@($" (contradicts guess {earlier})")</span>
+                            }
+                        </span>
                         <div class="peg-holes">
                             @for (var pegIndex = 0; pegIndex < GameState.BoardConfig.ShieldSize; pegIndex++)
                             {
@@ -80,6 +90,11 @@
                     </div>
                 }
             </div>
+
+            @if (_coachOn)
+            {
+                <CoachPanel Notes="GameState.CoachNotes" />
+            }
 
             @if (!GameState.IsGameOver)
             {

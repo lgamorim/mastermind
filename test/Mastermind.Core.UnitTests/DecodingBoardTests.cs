@@ -42,7 +42,7 @@ public class DecodingBoardTests
 
         decodingBoard.PlayCodeMaker(shield);
 
-        decodingBoard.Shield.Should().Be(shield);
+        decodingBoard.Shield.Should().BeSameAs(shield);
     }
 
     [Fact]
@@ -263,7 +263,7 @@ public class DecodingBoardTests
         decodingBoard.PlayCodeMaker(firstShield);
         decodingBoard.PlayCodeMaker(secondShield);
 
-        decodingBoard.Shield.Should().Be(secondShield);
+        decodingBoard.Shield.Should().BeSameAs(secondShield);
 
         var result = decodingBoard.PlayCodeBreaker([Blue, Blue, Blue, Blue]);
 

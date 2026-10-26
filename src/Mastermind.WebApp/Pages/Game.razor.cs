@@ -14,6 +14,10 @@ public partial class Game
     private CodePeg? _selectedColor;
     private int? _dragOverSlot;
 
+    // Off by default so the classic game stays unaided; the player opts in to
+    // the coach's counts and contradiction warnings.
+    private bool _coachOn;
+
     [SupplyParameterFromQuery(Name = "debug")]
     [Parameter]
     public bool Debug { get; set; }
