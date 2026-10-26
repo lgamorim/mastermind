@@ -18,8 +18,51 @@
    third item beside the title and New Game. */
 .game-options {
     display: flex;
-    justify-content: flex-end;
+    align-items: center;
+    justify-content: space-between;
     margin-bottom: 0.75rem;
+}
+
+/* Free play / Daily: a two-button segmented switch; aria-pressed marks the one on screen. */
+.mode-switch {
+    display: flex;
+    border: 1px solid #5a1117;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.mode-switch button {
+    padding: 0.3rem 0.75rem;
+    border: none;
+    background: #fff;
+    color: #5a1117;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.mode-switch button + button {
+    border-left: 1px solid #5a1117;
+}
+
+.mode-switch button[aria-pressed="true"] {
+    background: #5a1117;
+    color: #fff;
+}
+
+.daily-new {
+    margin: 0 0 0.75rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    background: #fef3c7;
+    color: #78350f;
+    font-size: 0.8125rem;
+    text-align: center;
+}
+
+.mode-switch button:focus-visible {
+    outline: 2px solid #b45309;
+    outline-offset: -2px;
 }
 
 .coach-toggle {
@@ -325,6 +368,50 @@
 .submit-error {
     color: #fca5a5;
     font-size: 0.8rem;
+}
+
+/* === Daily result sharing === */
+
+.daily-share {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.btn-share {
+    padding: 0.5rem 1.5rem;
+    border: none;
+    border-radius: 6px;
+    background: #b45309;
+    color: #fff;
+    font-size: 0.875rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+}
+
+.btn-share:hover {
+    background: #92400e;
+}
+
+.share-status {
+    margin: 0;
+    color: #f0e6c8;
+    font-size: 0.8125rem;
+    text-align: center;
+}
+
+.share-text {
+    margin: 0;
+    padding: 8px 12px;
+    border-radius: 6px;
+    background: #f0e6c8;
+    color: #1f2937;
+    font-size: 0.875rem;
+    line-height: 1.4;
+    user-select: all;
 }
 
 /* === Color palette === */

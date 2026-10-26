@@ -9,8 +9,20 @@
     </div>
 
     <div class="game-options">
+        <div class="mode-switch" role="group" aria-label="Game">
+            <button type="button" class="mode-free" aria-pressed="@(IsDaily ? "false" : "true")" @onclick="OpenFreePlay">Free play</button>
+            @if (DailyAvailable)
+            {
+                <button type="button" class="mode-daily" aria-pressed="@(IsShowingTodaysDaily ? "true" : "false")" @onclick="OpenDaily">Daily #@DailyPuzzle.NumberFor(Today)</button>
+            }
+        </div>
         <label class="coach-toggle"><input type="checkbox" @bind="_coachOn" /> Coach</label>
     </div>
+
+    @if (IsShowingAnEarlierDaily)
+    {
+        <p class="daily-new" role="status">A new puzzle is out: Daily #@DailyPuzzle.NumberFor(Today). Choose it above when you're ready.</p>
+    }
 
     @if (!GameStarted)
     {
@@ -33,9 +45,7 @@
             @if (GameState.IsGameOver)
             {
                 <div class="result-banner @(GameState.HasWon ? "result-win" : "result-loss")">
-                    @(GameState.HasWon
-                        ? $"You cracked the code in {GameState.History.Count} guess{(GameState.History.Count == 1 ? "" : "es")}!"
-                        : "The Code Maker wins — better luck next time!")
+                    @ResultMessage()
                 </div>
             }
 
@@ -124,8 +134,27 @@
                 </div>
             }
 
+            @if (IsDaily && GameState.IsGameOver)
+            {
+                <div class="daily-share">
+                    <button type="button" class="btn-share" @onclick="ShareResultAsync">Share result</button>
+                    @if (_shareStatus is not null)
+                    {
+                        <p class="share-status" role="status">@_shareStatus</p>
+                    }
+                    @if (_shareFallbackText is not null)
+                    {
+                        <pre class="share-text" tabindex="0">@_shareFallbackText</pre>
+                    }
+                </div>
+            }
+
         </div>
     }
 
-    <StatsPanel Stats="GameState.Stats" HighlightedGuessCount="@(GameState.HasWon ? GameState.History.Count : null)" />
+    @* Free-play statistics only: hidden, not removed, during the daily puzzle so the panel
+       keeps its collapsed or expanded state for when the player switches back. *@
+    <div class="stats-area" hidden="@IsDaily">
+        <StatsPanel Stats="GameState.Stats" HighlightedGuessCount="@(GameState.HasWon ? GameState.History.Count : null)" />
+    </div>
 </div>

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using FluentAssertions;
 using Mastermind.Core;
 using Mastermind.WebApp.Services;
@@ -547,6 +548,243 @@ public class GameStateServiceTests
 
         // Four Whites scored nothing, so White is nowhere: 5 colors in each of 4 holes.
         gameStateService.CoachNotes.Should().ContainSingle().Which.CodesRemaining.Should().Be(625);
+    }
+
+    private static readonly DateOnly Today = new(2026, 11, 3);
+    private static readonly CodePeg[] NoGuess = [CodePeg.White, CodePeg.White, CodePeg.White, CodePeg.White];
+
+    // A guess that cannot be the day's code: the first color its code doesn't use, four times.
+    private static CodePeg[] WrongGuessFor(DateOnly date)
+    {
+        var code = DailyPuzzle.SecretCodeFor(date);
+        var missing = Enum.GetValues<CodePeg>().First(color => !code.Contains(color));
+        return [missing, missing, missing, missing];
+    }
+
+    [Fact]
+    public void Should_StartInFreePlayWithNoGame_When_Created()
+    {
+        var gameStateService = CreateGameStateService();
+
+        gameStateService.Mode.Should().Be(GameMode.FreePlay);
+        gameStateService.HasGame.Should().BeFalse();
+        gameStateService.HasFreePlayGame.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Should_PlayTheDatesCode_When_TheDailyPuzzleStarts()
+    {
+        var secretCodeGenerator = CreateSecretCodeGenerator(SecretCode);
+        var gameStateService = new GameStateService(secretCodeGenerator);
+
+        gameStateService.StartDaily(Today);
+        gameStateService.TrySubmitGuess(DailyPuzzle.SecretCodeFor(Today), out _, out _);
+
+        gameStateService.Mode.Should().Be(GameMode.Daily);
+        gameStateService.DailyDate.Should().Be(Today);
+        gameStateService.HasWon.Should().BeTrue();
+        secretCodeGenerator.DidNotReceiveWithAnyArgs().Generate(default);
+    }
+
+    [Fact]
+    public void Should_KeepTheFreePlayGame_When_SwitchingToTheDailyPuzzleAndBack()
+    {
+        var gameStateService = CreateGameStateService();
+        gameStateService.StartNewGame();
+        gameStateService.TrySubmitGuess([CodePeg.Red, CodePeg.Red, CodePeg.Red, CodePeg.Red], out _, out _);
+        gameStateService.StartDaily(Today);
+        gameStateService.TrySubmitGuess(WrongGuessFor(Today), out _, out _);
+
+        gameStateService.ShowFreePlay();
+
+        gameStateService.Mode.Should().Be(GameMode.FreePlay);
+        gameStateService.History.Should().ContainSingle()
+            .Which.Guess.Should().Equal(CodePeg.Red, CodePeg.Red, CodePeg.Red, CodePeg.Red);
+        gameStateService.Stats.GamesPlayed.Should().Be(0);
+    }
+
+    [Fact]
+    public void Should_ResumeTodaysPuzzle_When_TheDailyPuzzleIsStartedAgainTheSameDay()
+    {
+        var gameStateService = CreateGameStateService();
+        gameStateService.StartDaily(Today);
+        gameStateService.TrySubmitGuess(WrongGuessFor(Today), out _, out _);
+        gameStateService.ShowFreePlay();
+
+        gameStateService.StartDaily(Today);
+
+        gameStateService.History.Should().ContainSingle();
+    }
+
+    [Fact]
+    public void Should_StartTheNewDaysPuzzle_When_TheDailyPuzzleIsStartedOnALaterDate()
+    {
+        var gameStateService = CreateGameStateService();
+        gameStateService.StartDaily(Today);
+        gameStateService.TrySubmitGuess(WrongGuessFor(Today), out _, out _);
+        var tomorrow = Today.AddDays(1);
+
+        gameStateService.StartDaily(tomorrow);
+        gameStateService.TrySubmitGuess(DailyPuzzle.SecretCodeFor(tomorrow), out _, out _);
+
+        gameStateService.DailyDate.Should().Be(tomorrow);
+        gameStateService.History.Should().ContainSingle();
+        gameStateService.HasWon.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Should_LeaveTheStatsAlone_When_DailyGamesAreWonOrLost()
+    {
+        var gameStateService = CreateGameStateService();
+        gameStateService.StartDaily(Today);
+        gameStateService.TrySubmitGuess(DailyPuzzle.SecretCodeFor(Today), out _, out _);
+        var tomorrow = Today.AddDays(1);
+        gameStateService.StartDaily(tomorrow);
+
+        for (var attempt = 0; attempt < BoardConfig.Standard.TotalRows; attempt++)
+        {
+            gameStateService.TrySubmitGuess(WrongGuessFor(tomorrow), out _, out _);
+        }
+
+        gameStateService.IsGameOver.Should().BeTrue();
+        gameStateService.Stats.Should().BeEquivalentTo(GameStats.Empty);
+    }
+
+    [Fact]
+    public void Should_NotRecordALoss_When_TheDailyPuzzleIsLeftInProgress()
+    {
+        var gameStateService = CreateGameStateService();
+        gameStateService.StartDaily(Today);
+        gameStateService.TrySubmitGuess(WrongGuessFor(Today), out _, out _);
+
+        gameStateService.StartNewGame();
+
+        gameStateService.Stats.GamesPlayed.Should().Be(0);
+    }
+
+    [Fact]
+    public void Should_KeepTheDailyPuzzle_When_ANewFreePlayGameStarts()
+    {
+        var gameStateService = CreateGameStateService();
+        gameStateService.StartDaily(Today);
+        gameStateService.TrySubmitGuess(WrongGuessFor(Today), out _, out _);
+        gameStateService.StartNewGame();
+
+        gameStateService.StartDaily(Today);
+
+        gameStateService.History.Should().ContainSingle();
+    }
+
+    [Fact]
+    public void Should_RecordALossAndSwitchToFreePlay_When_ANewGameReplacesAFreePlayGameFromTheDailyPuzzle()
+    {
+        var gameStateService = CreateGameStateService();
+        gameStateService.StartNewGame();
+        gameStateService.TrySubmitGuess(NoGuess, out _, out _);
+        gameStateService.StartDaily(Today);
+
+        gameStateService.StartNewGame();
+
+        gameStateService.Mode.Should().Be(GameMode.FreePlay);
+        gameStateService.History.Should().BeEmpty();
+        gameStateService.Stats.GamesPlayed.Should().Be(1);
+    }
+
+    [Fact]
+    public void Should_CoachTheDailyPuzzle_When_ItIsOpenedFromAFreePlayGame()
+    {
+        var gameStateService = CreateGameStateService();
+        gameStateService.StartNewGame();
+        gameStateService.TrySubmitGuess(NoGuess, out _, out _);
+
+        gameStateService.StartDaily(Today);
+
+        gameStateService.CoachNotes.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Should_CoachTheFreePlayGame_When_SwitchingBackFromTheDailyPuzzle()
+    {
+        var gameStateService = CreateGameStateService();
+        gameStateService.StartNewGame();
+        gameStateService.TrySubmitGuess(NoGuess, out _, out _);
+        gameStateService.StartDaily(Today);
+
+        gameStateService.ShowFreePlay();
+
+        gameStateService.CoachNotes.Should().ContainSingle();
+    }
+
+    [Fact]
+    public void Should_HaveNoDailySave_When_NoDailyPuzzleHasBeenOpened()
+    {
+        var gameStateService = CreateGameStateService();
+
+        var savedDaily = gameStateService.CreateSavedDailyGame();
+
+        savedDaily.Should().BeNull();
+    }
+
+    [Fact]
+    public void Should_SaveTheDailyPuzzleSeparately_When_BothGamesHaveGuesses()
+    {
+        var gameStateService = CreateGameStateService();
+        gameStateService.StartNewGame();
+        gameStateService.TrySubmitGuess(NoGuess, out _, out _);
+        gameStateService.StartDaily(Today);
+        gameStateService.TrySubmitGuess(WrongGuessFor(Today), out _, out _);
+
+        var savedDaily = gameStateService.CreateSavedDailyGame();
+        var savedFreePlay = gameStateService.CreateSavedGame();
+
+        savedDaily.Should().BeEquivalentTo(new { Date = Today, Guesses = new[] { WrongGuessFor(Today) } });
+        savedFreePlay.Should().BeEquivalentTo(new { Guesses = new[] { NoGuess } });
+    }
+
+    [Fact]
+    public void Should_RestoreTodaysPuzzleWithoutShowingIt_When_ItsSaveIsFromToday()
+    {
+        var gameStateService = CreateGameStateService();
+
+        var restored = gameStateService.TryRestoreDaily(new SavedDailyGame(Today, [WrongGuessFor(Today)]), Today);
+
+        restored.Should().BeTrue();
+        gameStateService.DailyDate.Should().Be(Today);
+        gameStateService.Mode.Should().Be(GameMode.FreePlay);
+    }
+
+    [Fact]
+    public void Should_ResumeTheRestoredPuzzle_When_TheDailyPuzzleIsOpened()
+    {
+        var gameStateService = CreateGameStateService();
+        gameStateService.TryRestoreDaily(new SavedDailyGame(Today, [WrongGuessFor(Today)]), Today);
+
+        gameStateService.StartDaily(Today);
+
+        gameStateService.History.Should().ContainSingle();
+        gameStateService.CoachNotes.Should().ContainSingle();
+    }
+
+    public static TheoryData<string, SavedDailyGame> UnusableDailySaves => new()
+    {
+        { "yesterday's puzzle", new SavedDailyGame(Today.AddDays(-1), []) },
+        { "undefined peg", new SavedDailyGame(Today, [[CodePeg.Red, CodePeg.Red, CodePeg.Red, (CodePeg)42]]) },
+        // null! stands in for "guesses":[null] in an edited save, which JSON's nullable checks let through.
+        { "null guess", new SavedDailyGame(Today, [null!]) },
+        { "guess too short", new SavedDailyGame(Today, [[CodePeg.Red]]) },
+        { "guess after the win", new SavedDailyGame(Today, [DailyPuzzle.SecretCodeFor(Today), DailyPuzzle.SecretCodeFor(Today)]) },
+    };
+
+    [Theory]
+    [MemberData(nameof(UnusableDailySaves))]
+    public void Should_IgnoreTheDailySave_When_ItIsNotAPlayableGameFromToday(string scenario, SavedDailyGame savedDailyGame)
+    {
+        var gameStateService = CreateGameStateService();
+
+        var restored = gameStateService.TryRestoreDaily(savedDailyGame, Today);
+
+        restored.Should().BeFalse(scenario);
+        gameStateService.DailyDate.Should().BeNull(scenario);
     }
 
     private static GameStateService CreateGameStateService()

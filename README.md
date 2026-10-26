@@ -51,6 +51,24 @@ Your game is saved in the browser after every guess, so reloading the page or co
 
 Below the board, **Statistics** tracks your games in the same browser: games played, win rate, your current and best winning streaks, and a chart of how many guesses each win took. Starting a new game while one with guesses is still in progress counts as a loss. Games played in debug mode are not counted. Use **Hide statistics** under the board to collapse the panel, and **Show statistics** to bring it back.
 
+#### Daily puzzle (web app)
+
+Switch from **Free play** to **Daily #N** above the board to play the day's puzzle: the same secret code for everyone on the same calendar date, with a new one at your local midnight. Each day's puzzle can be played once. Your progress is saved separately, so you can switch back to your free-play game at any time and return. When it ends, **Share result** copies a spoiler-free summary built only from the feedback, ready to paste into a chat:
+
+```
+Mastermind Daily #12 4/10
+
+🟩🟨⬛⬛
+🟩🟩🟨⬛
+🟩🟩🟩🟨
+🟩🟩🟩🟩
+
+🟩 right color, right place
+🟨 right color, wrong place
+```
+
+If the browser doesn't allow copying, the text is shown for you to copy yourself. Daily games don't count toward the free-play statistics.
+
 #### Coach (web app)
 
 Tick **Coach** above the board for feedback on your deduction. A line under the board says how many of the 1,296 possible codes still fit the feedback so far. If a guess could not have been the code, given what earlier feedback proved, the coach says which earlier guess it contradicts and marks the row's number in amber. The coach never reveals which codes remain, and coached games count toward your statistics.

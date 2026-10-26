@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Bunit;
 using FluentAssertions;
@@ -8,6 +9,7 @@ using Mastermind.WebApp.Services;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.JSInterop;
 using NSubstitute;
 using Xunit;
 using Game = Mastermind.WebApp.Pages.Game;
@@ -18,12 +20,22 @@ public class GameTests : BunitContext
 {
     private const string SavedGameKey = "mastermind.savedGame.v1";
     private const string StatsKey = "mastermind.stats.v1";
+    private const string DailyKey = "mastermind.daily.v1";
+
+    // 3 November 2026: daily puzzle #9, counting 26 October as #1.
+    private static readonly DateOnly Today = new(2026, 11, 3);
 
     private static readonly CodePeg[] SecretCode = [CodePeg.Red, CodePeg.Blue, CodePeg.Yellow, CodePeg.Green];
 
     // Production by default, as the published site runs: a static host sends no
     // Blazor-Environment header, so WebAssembly falls back to Production.
     private readonly FakeHostEnvironment _hostEnvironment = new() { Environment = "Production" };
+
+    private readonly FixedTimeProvider _clock = new()
+    {
+        UtcNow = new DateTimeOffset(2026, 11, 3, 12, 0, 0, TimeSpan.Zero),
+        Zone = TimeZoneInfo.Utc,
+    };
 
     public GameTests()
     {
@@ -33,6 +45,7 @@ public class GameTests : BunitContext
         Services.AddSingleton<GameStateService>();
         Services.AddSingleton<IWebAssemblyHostEnvironment>(_hostEnvironment);
         Services.AddSingleton<GameStorage>();
+        Services.AddSingleton<TimeProvider>(_clock);
 
         // Loose: unplanned localStorage calls succeed with defaults, so getItem
         // finds no save and setItem is accepted. Persistence tests set up the
@@ -422,7 +435,7 @@ public class GameTests : BunitContext
 
         var cut = Render<Game>();
 
-        cut.WaitForAssertion(() => JSInterop.VerifyInvoke("localStorage.getItem", calledTimes: 2));
+        cut.WaitForAssertion(() => JSInterop.VerifyInvoke("localStorage.getItem", calledTimes: 3));
         cut.FindAll(".board-placeholder").Should().HaveCount(1);
     }
 
@@ -434,7 +447,7 @@ public class GameTests : BunitContext
 
         var cut = Render<Game>();
 
-        cut.WaitForAssertion(() => JSInterop.VerifyInvoke("localStorage.getItem", calledTimes: 2));
+        cut.WaitForAssertion(() => JSInterop.VerifyInvoke("localStorage.getItem", calledTimes: 3));
         cut.FindAll(".board-placeholder").Should().HaveCount(1);
     }
 
@@ -589,7 +602,7 @@ public class GameTests : BunitContext
 
         var cut = Render<Game>();
 
-        cut.WaitForAssertion(() => JSInterop.VerifyInvoke("localStorage.getItem", calledTimes: 2));
+        cut.WaitForAssertion(() => JSInterop.VerifyInvoke("localStorage.getItem", calledTimes: 3));
         PlayedTile(cut).Should().Be("0");
     }
 
@@ -676,12 +689,228 @@ public class GameTests : BunitContext
         cut.Find(".btn-submit").Click();
     }
 
+    private IRenderedComponent<Game> RenderAndOpenTheDailyPuzzle()
+    {
+        var cut = Render<Game>();
+        cut.Find(".mode-daily").Click();
+        return cut;
+    }
+
+    [Fact]
+    public void Should_OfferTodaysDailyPuzzleByNumber_When_ThePageRenders()
+    {
+        var cut = Render<Game>();
+
+        cut.Find(".mode-daily").TextContent.Should().Be("Daily #9");
+        cut.Find(".mode-free").GetAttribute("aria-pressed").Should().Be("true");
+        cut.Find(".mode-daily").GetAttribute("aria-pressed").Should().Be("false");
+    }
+
+    [Fact]
+    public void Should_FollowThePlayersLocalDate_When_UtcHasAlreadyMovedOn()
+    {
+        // 03:00 UTC on 4 November is still 22:00 on 3 November five hours west of UTC.
+        _clock.UtcNow = new DateTimeOffset(2026, 11, 4, 3, 0, 0, TimeSpan.Zero);
+        _clock.Zone = TimeZoneInfo.CreateCustomTimeZone("UTC-5", TimeSpan.FromHours(-5), "UTC-5", "UTC-5");
+
+        var cut = Render<Game>();
+
+        cut.Find(".mode-daily").TextContent.Should().Be("Daily #9");
+    }
+
+    [Fact]
+    public void Should_LeaveOutTheDailyPuzzle_When_TheClockIsBeforeTheFirstPuzzle()
+    {
+        _clock.UtcNow = new DateTimeOffset(2026, 10, 1, 12, 0, 0, TimeSpan.Zero);
+
+        var cut = Render<Game>();
+
+        cut.FindAll(".mode-daily").Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Should_ShowTheDailyBoardAndHideTheStats_When_TheDailyPuzzleIsOpened()
+    {
+        var cut = RenderAndOpenTheDailyPuzzle();
+
+        cut.FindAll(".board-row").Should().HaveCount(10);
+        cut.FindAll(".board-placeholder").Should().BeEmpty();
+        cut.Find(".mode-daily").GetAttribute("aria-pressed").Should().Be("true");
+        cut.Find(".stats-area").HasAttribute("hidden").Should().BeTrue();
+    }
+
+    [Fact]
+    public void Should_AnnounceTheDailyWin_When_TheDaysCodeIsCracked()
+    {
+        var cut = RenderAndOpenTheDailyPuzzle();
+
+        PlayGuess(cut, DailyPuzzle.SecretCodeFor(Today));
+
+        cut.Find(".result-banner").TextContent.Trim().Should().Be("You cracked Daily #9 in 1 guess!");
+    }
+
+    [Fact]
+    public void Should_AnnounceTheDailyLoss_When_EveryRowIsUsed()
+    {
+        var code = DailyPuzzle.SecretCodeFor(Today);
+        var missing = Enum.GetValues<CodePeg>().First(color => !code.Contains(color));
+        var cut = RenderAndOpenTheDailyPuzzle();
+
+        for (var row = 0; row < 10; row++)
+        {
+            PlayGuess(cut, [missing, missing, missing, missing]);
+        }
+
+        cut.Find(".result-banner").TextContent.Trim().Should().Be("Daily #9 kept its secret. A new puzzle starts at midnight.");
+    }
+
+    [Fact]
+    public void Should_NotOfferToShare_When_TheDailyPuzzleIsInProgress()
+    {
+        var cut = RenderAndOpenTheDailyPuzzle();
+
+        cut.FindAll(".btn-share").Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Should_CopyTheShareText_When_ShareIsClicked()
+    {
+        JSInterop.SetupVoid("navigator.clipboard.writeText", _ => true).SetVoidResult();
+        var cut = RenderAndOpenTheDailyPuzzle();
+        PlayGuess(cut, DailyPuzzle.SecretCodeFor(Today));
+
+        cut.Find(".btn-share").Click();
+
+        var copied = (string?)JSInterop.VerifyInvoke("navigator.clipboard.writeText").Arguments[0];
+        copied.Should().StartWith("Mastermind Daily #9 1/10\n\n🟩🟩🟩🟩");
+        cut.Find(".share-status").TextContent.Should().Be("Copied to your clipboard.");
+        cut.FindAll(".share-text").Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Should_ShowTheTextToCopyByHand_When_TheClipboardRefuses()
+    {
+        JSInterop.SetupVoid("navigator.clipboard.writeText", _ => true).SetException(new JSException("Clipboard blocked."));
+        var cut = RenderAndOpenTheDailyPuzzle();
+        PlayGuess(cut, DailyPuzzle.SecretCodeFor(Today));
+
+        cut.Find(".btn-share").Click();
+
+        cut.Find(".share-status").TextContent.Should().Contain("copy it from the box below");
+        cut.Find(".share-text").TextContent.Should().StartWith("Mastermind Daily #9 1/10");
+    }
+
+    [Fact]
+    public void Should_SaveTheDailyGameUnderItsOwnKey_When_ADailyGuessIsSubmitted()
+    {
+        var cut = RenderAndOpenTheDailyPuzzle();
+
+        PlayGuess(cut, [CodePeg.White, CodePeg.White, CodePeg.White, CodePeg.White]);
+
+        var saves = JSInterop.Invocations["localStorage.setItem"];
+        saves.Should().ContainSingle(call => (string?)call.Arguments[0] == DailyKey)
+            .Which.Arguments[1].Should().Be("""{"date":"2026-11-03","guesses":[["White","White","White","White"]]}""");
+        saves.Should().NotContain(call => (string?)call.Arguments[0] == SavedGameKey);
+    }
+
+    [Fact]
+    public void Should_KeepTheFreePlayGame_When_SwitchingToTheDailyPuzzleAndBack()
+    {
+        var cut = Render<Game>();
+        cut.Find(".btn-new-game").Click();
+        PlayGuess(cut, [CodePeg.White, CodePeg.White, CodePeg.White, CodePeg.White]);
+        cut.Find(".mode-daily").Click();
+
+        cut.Find(".mode-free").Click();
+
+        cut.FindAll(".board-row.played").Should().ContainSingle();
+        cut.Find(".stats-area").HasAttribute("hidden").Should().BeFalse();
+    }
+
+    private void MoveTheClockToTheNextDay() =>
+        _clock.UtcNow = new DateTimeOffset(2026, 11, 4, 12, 0, 0, TimeSpan.Zero);
+
+    [Fact]
+    public void Should_AnnounceTheNewPuzzle_When_MidnightPassesWithYesterdaysPuzzleOpen()
+    {
+        var cut = RenderAndOpenTheDailyPuzzle();
+        MoveTheClockToTheNextDay();
+
+        cut.Render();
+
+        cut.Find(".daily-new").TextContent.Should().Contain("A new puzzle is out: Daily #10");
+        cut.Find(".mode-daily").TextContent.Should().Be("Daily #10");
+        cut.Find(".mode-daily").GetAttribute("aria-pressed").Should().Be("false");
+    }
+
+    [Fact]
+    public void Should_LetYesterdaysPuzzleBeFinished_When_MidnightPassesMidGame()
+    {
+        var cut = RenderAndOpenTheDailyPuzzle();
+        MoveTheClockToTheNextDay();
+
+        PlayGuess(cut, DailyPuzzle.SecretCodeFor(Today));
+
+        cut.Find(".result-banner").TextContent.Trim().Should().Be("You cracked Daily #9 in 1 guess!");
+    }
+
+    [Fact]
+    public void Should_NotSaveYesterdaysPuzzle_When_ItIsPlayedAfterMidnight()
+    {
+        var cut = RenderAndOpenTheDailyPuzzle();
+        MoveTheClockToTheNextDay();
+
+        PlayGuess(cut, [CodePeg.White, CodePeg.White, CodePeg.White, CodePeg.White]);
+
+        JSInterop.Invocations["localStorage.setItem"].Should().NotContain(call => (string?)call.Arguments[0] == DailyKey);
+    }
+
+    [Fact]
+    public void Should_OpenTheNewDaysPuzzle_When_TheDailyButtonIsClickedAfterMidnight()
+    {
+        var cut = RenderAndOpenTheDailyPuzzle();
+        PlayGuess(cut, [CodePeg.White, CodePeg.White, CodePeg.White, CodePeg.White]);
+        MoveTheClockToTheNextDay();
+
+        cut.Find(".mode-daily").Click();
+
+        cut.FindAll(".board-row.played").Should().BeEmpty();
+        cut.FindAll(".daily-new").Should().BeEmpty();
+        cut.Find(".mode-daily").GetAttribute("aria-pressed").Should().Be("true");
+    }
+
+    [Fact]
+    public void Should_RestoreTodaysDailyGame_When_ThePageFirstRenders()
+    {
+        JSInterop.Setup<string?>("localStorage.getItem", DailyKey)
+            .SetResult("""{"date":"2026-11-03","guesses":[["White","White","White","White"]]}""");
+        var cut = Render<Game>();
+        cut.WaitForAssertion(() => JSInterop.VerifyInvoke("localStorage.getItem", calledTimes: 3));
+
+        cut.Find(".mode-daily").Click();
+
+        cut.FindAll(".board-row.played").Should().ContainSingle();
+    }
+
     // Debug arrives as a query parameter, so it is set by navigating rather than by passing
     // the parameter directly.
     private void RequestDebugMode()
     {
         var navigation = Services.GetRequiredService<NavigationManager>();
         navigation.NavigateTo(navigation.GetUriWithQueryParameter("debug", true));
+    }
+
+    // A clock the tests set: the instant and the player's time zone, which together decide
+    // the local date the daily puzzle follows.
+    private sealed class FixedTimeProvider : TimeProvider
+    {
+        public required DateTimeOffset UtcNow { get; set; }
+
+        public required TimeZoneInfo Zone { get; set; }
+
+        public override DateTimeOffset GetUtcNow() => UtcNow;
+
+        public override TimeZoneInfo LocalTimeZone => Zone;
     }
 
     private sealed class FakeHostEnvironment : IWebAssemblyHostEnvironment

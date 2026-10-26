@@ -11,5 +11,6 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 builder.Services.AddSingleton<ISecretCodeGenerator, RandomSecretCodeGenerator>();
 builder.Services.AddScoped<GameStateService>();
 builder.Services.AddScoped<GameStorage>();
+builder.Services.AddSingleton(TimeProvider.System);
 
 await builder.Build().RunAsync();

@@ -3,12 +3,13 @@ using Mastermind.WebApp.Services;
 
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
+using Microsoft.JSInterop;
 
 namespace Mastermind.WebApp.Pages;
 
 public partial class Game
 {
-    private CodePeg?[] _guessSlots = [];
+    private CodePeg?[] _guessSlots = new CodePeg?[BoardConfig.Standard.ShieldSize];
     private string? _submitError;
     private CodePeg? _draggedColor;
     private CodePeg? _selectedColor;
@@ -17,6 +18,11 @@ public partial class Game
     // Off by default so the classic game stays unaided; the player opts in to
     // the coach's counts and contradiction warnings.
     private bool _coachOn;
+
+    // The outcome of the last Share click; the fallback text is shown when the
+    // browser would not let the page write to the clipboard.
+    private string? _shareStatus;
+    private string? _shareFallbackText;
 
     [SupplyParameterFromQuery(Name = "debug")]
     [Parameter]
@@ -35,9 +41,32 @@ public partial class Game
     [Inject]
     private GameStorage Storage { get; set; } = default!;
 
-    private bool GameStarted => _guessSlots.Length > 0;
+    // default!: assigned by the framework before use, as GameState above.
+    [Inject]
+    private TimeProvider Clock { get; set; } = default!;
 
-    private bool AllSlotsFilled => _guessSlots.Length > 0 && _guessSlots.All(slot => slot is not null);
+    // default!: assigned by the framework before use, as GameState above.
+    [Inject]
+    private IJSRuntime JS { get; set; } = default!;
+
+    private bool GameStarted => GameState.HasGame;
+
+    private bool AllSlotsFilled => _guessSlots.All(slot => slot is not null);
+
+    // The daily puzzle follows the player's own calendar, changing at their local midnight.
+    private DateOnly Today => DateOnly.FromDateTime(Clock.GetLocalNow().DateTime);
+
+    // Hidden if the clock reads earlier than the first puzzle, which has no number.
+    private bool DailyAvailable => Today >= DailyPuzzle.FirstDate;
+
+    private bool IsDaily => GameState.Mode is GameMode.Daily;
+
+    // A page left open past local midnight can still be showing yesterday's puzzle. The
+    // player may finish it, but the Daily button then stands for the new day's puzzle, and
+    // yesterday's game is no longer saved: its save would be dropped on the next load anyway.
+    private bool IsShowingTodaysDaily => IsDaily && GameState.DailyDate == Today;
+
+    private bool IsShowingAnEarlierDaily => IsDaily && GameState.DailyDate != Today;
 
     // ?debug=true shows the secret code, so only a local development run honors
     // it; the published site runs as Production and ignores it. This hides the
@@ -79,14 +108,17 @@ public partial class Game
             && GameState.TryRestoreStats(storedStats);
 
         var savedGame = await Storage.LoadGameAsync();
-        var gameRestored = savedGame is not null && !GameStarted && GameState.TryRestore(savedGame);
+        var gameRestored = savedGame is not null && !GameState.HasFreePlayGame && GameState.TryRestore(savedGame);
         if (gameRestored)
         {
             ResetBoardInput();
         }
 
+        var savedDaily = await Storage.LoadDailyGameAsync();
+        var dailyRestored = savedDaily is not null && GameState.DailyDate is null && GameState.TryRestoreDaily(savedDaily, Today);
+
         // Restored outside any event handler, so Blazor does not re-render on its own.
-        if (statsRestored || gameRestored)
+        if (statsRestored || gameRestored || dailyRestored)
         {
             await InvokeAsync(StateHasChanged);
         }
@@ -100,6 +132,18 @@ public partial class Game
         await SaveProgressAsync(statsBefore);
     }
 
+    private void OpenFreePlay()
+    {
+        GameState.ShowFreePlay();
+        ResetBoardInput();
+    }
+
+    private void OpenDaily()
+    {
+        GameState.StartDaily(Today);
+        ResetBoardInput();
+    }
+
     private void ResetBoardInput()
     {
         _guessSlots = new CodePeg?[GameState.BoardConfig.ShieldSize];
@@ -107,14 +151,57 @@ public partial class Game
         _draggedColor = null;
         _selectedColor = null;
         _dragOverSlot = null;
+        _shareStatus = null;
+        _shareFallbackText = null;
     }
 
-    // Saves the game after every move, and the stats only when the move
-    // changed them (a game ended or was abandoned). GameStats is immutable, so
-    // a changed record is a different instance.
+    private string ResultMessage()
+    {
+        var guesses = GameState.History.Count;
+        var plural = guesses == 1 ? "" : "es";
+
+        return (GameState.DailyDate, IsDaily, GameState.HasWon) switch
+        {
+            ({ } date, true, true) => $"You cracked Daily #{DailyPuzzle.NumberFor(date)} in {guesses} guess{plural}!",
+            ({ } date, true, false) => $"Daily #{DailyPuzzle.NumberFor(date)} kept its secret. A new puzzle starts at midnight.",
+            (_, _, true) => $"You cracked the code in {guesses} guess{plural}!",
+            _ => "The Code Maker wins — better luck next time!",
+        };
+    }
+
+    // Copies the spoiler-free result. The clipboard can refuse (permissions, an
+    // insecure page), so on failure the text is shown for the player to copy by hand.
+    private async Task ShareResultAsync()
+    {
+        if (GameState.DailyDate is not { } date) return;
+
+        var text = DailyShareText.Create(DailyPuzzle.NumberFor(date), GameState.History, GameState.HasWon);
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", text);
+            _shareStatus = "Copied to your clipboard.";
+            _shareFallbackText = null;
+        }
+        catch (JSException)
+        {
+            _shareStatus = "Your browser didn't allow copying, so copy it from the box below.";
+            _shareFallbackText = text;
+        }
+    }
+
+    // Saves the game on screen after every move, and the stats only when the
+    // move changed them (a game ended or was abandoned). GameStats is immutable,
+    // so a changed record is a different instance.
     private async Task SaveProgressAsync(GameStats statsBefore)
     {
-        if (GameState.CreateSavedGame() is { } savedGame)
+        if (IsDaily)
+        {
+            if (IsShowingTodaysDaily && GameState.CreateSavedDailyGame() is { } savedDaily)
+            {
+                await Storage.SaveDailyGameAsync(savedDaily);
+            }
+        }
+        else if (GameState.CreateSavedGame() is { } savedGame)
         {
             await Storage.SaveGameAsync(savedGame);
         }

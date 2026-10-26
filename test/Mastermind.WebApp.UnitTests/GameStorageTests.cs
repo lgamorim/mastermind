@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Threading.Tasks;
 using Bunit;
 using FluentAssertions;
 using Mastermind.Core;
@@ -12,6 +13,7 @@ public class GameStorageTests : BunitContext
 {
     private const string GameKey = "mastermind.savedGame.v1";
     private const string StatsKey = "mastermind.stats.v1";
+    private const string DailyKey = "mastermind.daily.v1";
 
     private static readonly SavedGame SampleGame = new(
         [CodePeg.Red, CodePeg.Blue, CodePeg.Yellow, CodePeg.Green],
@@ -147,5 +149,42 @@ public class GameStorageTests : BunitContext
         var save = () => CreateStorage().SaveStatsAsync(GameStats.Empty.RecordLoss());
 
         await save.Should().NotThrowAsync();
+    }
+
+    [Fact]
+    public async Task Should_WriteTheDateAndGuessesUnderTheDailyKey_When_TheDailyGameIsSaved()
+    {
+        JSInterop.SetupVoid("localStorage.setItem", _ => true).SetVoidResult();
+
+        await CreateStorage().SaveDailyGameAsync(new SavedDailyGame(new DateOnly(2026, 11, 3), [[CodePeg.Red, CodePeg.Red, CodePeg.Blue, CodePeg.Blue]]));
+
+        var save = JSInterop.VerifyInvoke("localStorage.setItem");
+        save.Arguments[0].Should().Be(DailyKey);
+        save.Arguments[1].Should().Be("""{"date":"2026-11-03","guesses":[["Red","Red","Blue","Blue"]]}""");
+    }
+
+    [Fact]
+    public async Task Should_LoadTheDailyGameThatWasSaved_When_ItIsReadBack()
+    {
+        JSInterop.Setup<string?>("localStorage.getItem", DailyKey)
+            .SetResult("""{"date":"2026-11-03","guesses":[["Red","Red","Blue","Blue"]]}""");
+
+        var saved = await CreateStorage().LoadDailyGameAsync();
+
+        saved.Should().BeEquivalentTo(new { Date = new DateOnly(2026, 11, 3), Guesses = new[] { new[] { CodePeg.Red, CodePeg.Red, CodePeg.Blue, CodePeg.Blue } } });
+    }
+
+    [Theory]
+    [InlineData("{not json")]
+    [InlineData("""{"guesses":[]}""")]
+    [InlineData("""{"date":"2026-13-40","guesses":[]}""")]
+    [InlineData("""{"date":"2026-11-03","guesses":null}""")]
+    public async Task Should_ReturnNull_When_TheSavedDailyGameIsDamaged(string json)
+    {
+        JSInterop.Setup<string?>("localStorage.getItem", DailyKey).SetResult(json);
+
+        var saved = await CreateStorage().LoadDailyGameAsync();
+
+        saved.Should().BeNull();
     }
 }
