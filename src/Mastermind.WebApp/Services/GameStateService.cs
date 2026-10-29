@@ -13,9 +13,9 @@ public sealed class GameStateService(ISecretCodeGenerator secretCodeGenerator)
 
     public GameMode Mode { get; private set; } = GameMode.FreePlay;
 
-    public bool HasGame => Current is not null;
-
-    public bool HasFreePlayGame => _freePlay is not null;
+    // A saved free-play game may replace the one kept only while the player has not chosen
+    // that one: there is none, or it is the first game, opened for them and not yet guessed in.
+    public bool CanRestoreFreePlay => _freePlay is null or { IsFirstGame: true, Game.History.Count: 0 };
 
     public bool HasEvilGame => _evil is not null;
 
@@ -67,6 +67,14 @@ public sealed class GameStateService(ISecretCodeGenerator secretCodeGenerator)
 
         _freePlay = new Round(GameMode.FreePlay, new Game(secretCodeGenerator), IsDebugMode);
         Mode = GameMode.FreePlay;
+    }
+
+    // Opens a free-play game for a player who has none, so the board is ready to play from
+    // the start; a game already kept is left as it is. A saved game that loads afterwards
+    // may still replace this one, until the player guesses in it.
+    public void OpenFirstGame()
+    {
+        _freePlay ??= new Round(GameMode.FreePlay, new Game(secretCodeGenerator), IsDebugMode) { IsFirstGame = true };
     }
 
     // Shows the free-play game, as it was left.
@@ -227,6 +235,9 @@ public sealed class GameStateService(ISecretCodeGenerator secretCodeGenerator)
         public bool RevealSecretFromStart { get; } = revealSecretFromStart;
 
         public DateOnly? Date { get; } = date;
+
+        // Opened for the player rather than started or restored by them.
+        public bool IsFirstGame { get; init; }
 
         public bool CountsTowardStats => kind is GameMode.FreePlay && !RevealSecretFromStart;
 

@@ -49,8 +49,6 @@ public partial class Game
     [Inject]
     private IJSRuntime JS { get; set; } = default!;
 
-    private bool GameStarted => GameState.HasGame;
-
     private bool AllSlotsFilled => _guessSlots.All(slot => slot is not null);
 
     // The daily puzzle follows the player's own calendar, changing at their local midnight.
@@ -76,9 +74,14 @@ public partial class Game
     // it; the published site runs as Production and ignores it. This hides the
     // code from casual players, not from anyone reading the app's memory: the
     // code lives in the browser either way.
+    //
+    // The first game opens here, after debug mode is known, so the board is ready
+    // from the first render. It is not saved: a saved game may still be loading,
+    // and replaces it if the player has not guessed in it yet.
     protected override void OnParametersSet()
     {
         GameState.IsDebugMode = Debug && HostEnvironment.IsDevelopment();
+        GameState.OpenFirstGame();
     }
 
     private static string ToPegClass(CodePeg color) => $"peg--{color.ToString().ToLowerInvariant()}";
@@ -112,7 +115,7 @@ public partial class Game
             && GameState.TryRestoreStats(storedStats);
 
         var savedGame = await Storage.LoadGameAsync();
-        var gameRestored = savedGame is not null && !GameState.HasFreePlayGame && GameState.TryRestore(savedGame);
+        var gameRestored = savedGame is not null && GameState.CanRestoreFreePlay && GameState.TryRestore(savedGame);
         if (gameRestored)
         {
             ResetBoardInput();

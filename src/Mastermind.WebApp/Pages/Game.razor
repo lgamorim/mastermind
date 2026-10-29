@@ -25,140 +25,131 @@
         <p class="daily-new" role="status">A new puzzle is out: Daily #@DailyPuzzle.NumberFor(Today). Choose it above when you're ready.</p>
     }
 
-    @if (!GameStarted)
-    {
-        <div class="board-placeholder">
-            <p>Click <strong>New Game</strong> to start playing.</p>
-        </div>
-    }
-    else
-    {
-        <div class="board">
+    <div class="board">
 
-            <div class="shield">
-                @for (var i = 0; i < GameState.BoardConfig.ShieldSize; i++)
-                {
-                    var si = i;
-                    <div class="shield-hole @(GameState.RevealedSecretCode is not null ? ToPegClass(GameState.RevealedSecretCode[si]) : "")"></div>
-                }
-            </div>
-
-            @if (GameState.IsGameOver)
+        <div class="shield">
+            @for (var i = 0; i < GameState.BoardConfig.ShieldSize; i++)
             {
-                <div class="result-banner @(GameState.HasWon ? "result-win" : "result-loss")">
-                    @ResultMessage()
-                </div>
+                var si = i;
+                <div class="shield-hole @(GameState.RevealedSecretCode is not null ? ToPegClass(GameState.RevealedSecretCode[si]) : "")"></div>
             }
+        </div>
 
-            <div class="board-rows">
-                @for (var rowIndex = 0; rowIndex < GameState.BoardConfig.TotalRows; rowIndex++)
-                {
-                    var ri = rowIndex;
-                    var isPlayed = ri < GameState.History.Count;
-                    var isActive = ri == GameState.History.Count && !GameState.IsGameOver;
-                    var contradicts = _coachOn && isPlayed ? GameState.CoachNotes[ri].ContradictedAttempt : null;
+        @if (GameState.IsGameOver)
+        {
+            <div class="result-banner @(GameState.HasWon ? "result-win" : "result-loss")">
+                @ResultMessage()
+            </div>
+        }
 
-                    <div class="board-row @(isActive ? "active" : "") @(isPlayed ? "played" : "") @(contradicts is not null ? "contradicted" : "")">
-                        <span class="row-number" title="@(contradicts is null ? null : $"Couldn't have been the code: contradicts guess {contradicts}")">
-                            @(ri + 1)@if (contradicts is { } earlier)
+        <div class="board-rows">
+            @for (var rowIndex = 0; rowIndex < GameState.BoardConfig.TotalRows; rowIndex++)
+            {
+                var ri = rowIndex;
+                var isPlayed = ri < GameState.History.Count;
+                var isActive = ri == GameState.History.Count && !GameState.IsGameOver;
+                var contradicts = _coachOn && isPlayed ? GameState.CoachNotes[ri].ContradictedAttempt : null;
+
+                <div class="board-row @(isActive ? "active" : "") @(isPlayed ? "played" : "") @(contradicts is not null ? "contradicted" : "")">
+                    <span class="row-number" title="@(contradicts is null ? null : $"Couldn't have been the code: contradicts guess {contradicts}")">
+                        @(ri + 1)@if (contradicts is { } earlier)
+                        {
+                            <span class="visually-hidden">@($" (contradicts guess {earlier})")</span>
+                        }
+                    </span>
+                    <div class="peg-holes">
+                        @for (var pegIndex = 0; pegIndex < GameState.BoardConfig.ShieldSize; pegIndex++)
+                        {
+                            var pi = pegIndex;
+                            @if (isPlayed)
                             {
-                                <span class="visually-hidden">@($" (contradicts guess {earlier})")</span>
+                                <div class="peg-hole @ToPegClass(GameState.History[ri].Guess[pi])"></div>
                             }
-                        </span>
-                        <div class="peg-holes">
-                            @for (var pegIndex = 0; pegIndex < GameState.BoardConfig.ShieldSize; pegIndex++)
+                            else if (isActive)
                             {
-                                var pi = pegIndex;
-                                @if (isPlayed)
-                                {
-                                    <div class="peg-hole @ToPegClass(GameState.History[ri].Guess[pi])"></div>
-                                }
-                                else if (isActive)
-                                {
-                                    var slotColor = _guessSlots[pi];
-                                    <button type="button"
-                                            class="peg-hole drop-zone @(slotColor.HasValue ? ToPegClass(slotColor.Value) : "") @(_dragOverSlot == pi ? "drag-over" : "")"
-                                            aria-label="@ToSlotLabel(pi, slotColor)"
-                                            @ondragover:preventDefault
-                                            @ondragenter="() => _dragOverSlot = pi"
-                                            @ondragleave="() => OnSlotDragLeave(pi)"
-                                            @ondrop="() => OnSlotDrop(pi)"
-                                            @onclick="() => OnSlotClick(pi)">
-                                    </button>
-                                }
-                                else
-                                {
-                                    <div class="peg-hole"></div>
-                                }
+                                var slotColor = _guessSlots[pi];
+                                <button type="button"
+                                        class="peg-hole drop-zone @(slotColor.HasValue ? ToPegClass(slotColor.Value) : "") @(_dragOverSlot == pi ? "drag-over" : "")"
+                                        aria-label="@ToSlotLabel(pi, slotColor)"
+                                        @ondragover:preventDefault
+                                        @ondragenter="() => _dragOverSlot = pi"
+                                        @ondragleave="() => OnSlotDragLeave(pi)"
+                                        @ondrop="() => OnSlotDrop(pi)"
+                                        @onclick="() => OnSlotClick(pi)">
+                                </button>
                             }
-                        </div>
-                        <div class="key-pegs">
-                            @foreach (var dotClass in GetKeyPegDots(isPlayed ? GameState.History[ri].Response : default, GameState.BoardConfig.ShieldSize))
+                            else
                             {
-                                <div class="key-peg-dot @dotClass"></div>
+                                <div class="peg-hole"></div>
                             }
-                        </div>
+                        }
                     </div>
+                    <div class="key-pegs">
+                        @foreach (var dotClass in GetKeyPegDots(isPlayed ? GameState.History[ri].Response : default, GameState.BoardConfig.ShieldSize))
+                        {
+                            <div class="key-peg-dot @dotClass"></div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+
+        @if (_coachOn)
+        {
+            <CoachPanel Notes="GameState.CoachNotes" />
+        }
+
+        @if (!GameState.IsGameOver)
+        {
+            <div class="submit-area">
+                <button class="btn-submit" disabled="@(!AllSlotsFilled)" @onclick="SubmitGuess">Submit</button>
+                @if (_submitError is not null)
+                {
+                    <span class="submit-error" role="alert">@_submitError</span>
                 }
             </div>
 
-            @if (_coachOn)
-            {
-                <CoachPanel Notes="GameState.CoachNotes" />
-            }
+            <div class="palette">
+                @foreach (var color in GameState.AvailableColors)
+                {
+                    var paletteColor = color;
+                    <button type="button"
+                            class="palette-peg @ToPegClass(paletteColor) @(_selectedColor == paletteColor ? "selected" : "")"
+                            draggable="true"
+                            title="@paletteColor"
+                            aria-label="@paletteColor"
+                            aria-pressed="@(_selectedColor == paletteColor ? "true" : "false")"
+                            @ondragstart="() => OnPaletteDragStart(paletteColor)"
+                            @ondragend="OnPaletteDragEnd"
+                            @onclick="() => OnPaletteClick(paletteColor)">
+                    </button>
+                }
+            </div>
+        }
 
-            @if (!GameState.IsGameOver)
-            {
-                <div class="submit-area">
-                    <button class="btn-submit" disabled="@(!AllSlotsFilled)" @onclick="SubmitGuess">Submit</button>
-                    @if (_submitError is not null)
-                    {
-                        <span class="submit-error" role="alert">@_submitError</span>
-                    }
-                </div>
+        @if (IsEvil && GameState.IsGameOver)
+        {
+            <div class="evil-again">
+                <button type="button" class="btn-try-again" @onclick="StartNewEvilGame">Try again</button>
+            </div>
+        }
 
-                <div class="palette">
-                    @foreach (var color in GameState.AvailableColors)
-                    {
-                        var paletteColor = color;
-                        <button type="button"
-                                class="palette-peg @ToPegClass(paletteColor) @(_selectedColor == paletteColor ? "selected" : "")"
-                                draggable="true"
-                                title="@paletteColor"
-                                aria-label="@paletteColor"
-                                aria-pressed="@(_selectedColor == paletteColor ? "true" : "false")"
-                                @ondragstart="() => OnPaletteDragStart(paletteColor)"
-                                @ondragend="OnPaletteDragEnd"
-                                @onclick="() => OnPaletteClick(paletteColor)">
-                        </button>
-                    }
-                </div>
-            }
+        @if (IsDaily && GameState.IsGameOver)
+        {
+            <div class="daily-share">
+                <button type="button" class="btn-share" @onclick="ShareResultAsync">Share result</button>
+                @if (_shareStatus is not null)
+                {
+                    <p class="share-status" role="status">@_shareStatus</p>
+                }
+                @if (_shareFallbackText is not null)
+                {
+                    <pre class="share-text" tabindex="0">@_shareFallbackText</pre>
+                }
+            </div>
+        }
 
-            @if (IsEvil && GameState.IsGameOver)
-            {
-                <div class="evil-again">
-                    <button type="button" class="btn-try-again" @onclick="StartNewEvilGame">Try again</button>
-                </div>
-            }
-
-            @if (IsDaily && GameState.IsGameOver)
-            {
-                <div class="daily-share">
-                    <button type="button" class="btn-share" @onclick="ShareResultAsync">Share result</button>
-                    @if (_shareStatus is not null)
-                    {
-                        <p class="share-status" role="status">@_shareStatus</p>
-                    }
-                    @if (_shareFallbackText is not null)
-                    {
-                        <pre class="share-text" tabindex="0">@_shareFallbackText</pre>
-                    }
-                </div>
-            }
-
-        </div>
-    }
+    </div>
 
     @* Free-play statistics only: hidden, not removed, in the other modes so the panel keeps
        its collapsed or expanded state for when the player switches back. *@

@@ -550,6 +550,92 @@ public class GameStateServiceTests
         gameStateService.CoachNotes.Should().ContainSingle().Which.CodesRemaining.Should().Be(625);
     }
 
+    [Fact]
+    public void Should_ShowAFreePlayGameReadyToPlay_When_TheFirstGameOpens()
+    {
+        var gameStateService = CreateGameStateService();
+
+        gameStateService.OpenFirstGame();
+
+        gameStateService.Mode.Should().Be(GameMode.FreePlay);
+        gameStateService.CreateSavedGame().Should().NotBeNull();
+        gameStateService.History.Should().BeEmpty();
+        gameStateService.IsGameOver.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Should_RevealTheSecretCode_When_TheFirstGameOpensInDebugMode()
+    {
+        var gameStateService = CreateGameStateService();
+        gameStateService.IsDebugMode = true;
+
+        gameStateService.OpenFirstGame();
+
+        gameStateService.RevealedSecretCode.Should().Equal(SecretCode);
+    }
+
+    [Fact]
+    public void Should_KeepTheGameBeingPlayed_When_TheFirstGameOpensAgain()
+    {
+        var gameStateService = CreateGameStateService();
+        gameStateService.StartNewGame();
+        gameStateService.TrySubmitGuess(NoGuess, out _, out _);
+
+        gameStateService.OpenFirstGame();
+
+        gameStateService.History.Should().ContainSingle();
+    }
+
+    [Fact]
+    public void Should_AllowRestoringTheFreePlayGame_When_ThereIsNone()
+    {
+        var gameStateService = CreateGameStateService();
+
+        gameStateService.CanRestoreFreePlay.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Should_AllowRestoringTheFreePlayGame_When_OnlyTheUntouchedFirstGameIsOpen()
+    {
+        var gameStateService = CreateGameStateService();
+        gameStateService.OpenFirstGame();
+
+        gameStateService.CanRestoreFreePlay.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Should_RefuseRestoringTheFreePlayGame_When_TheFirstGameHasAGuess()
+    {
+        var gameStateService = CreateGameStateService();
+        gameStateService.OpenFirstGame();
+
+        gameStateService.TrySubmitGuess(NoGuess, out _, out _);
+
+        gameStateService.CanRestoreFreePlay.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Should_RefuseRestoringTheFreePlayGame_When_ThePlayerStartedANewGame()
+    {
+        var gameStateService = CreateGameStateService();
+        gameStateService.OpenFirstGame();
+
+        gameStateService.StartNewGame();
+
+        gameStateService.CanRestoreFreePlay.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Should_RefuseRestoringTheFreePlayGame_When_OneWasAlreadyRestored()
+    {
+        var gameStateService = CreateGameStateService();
+        gameStateService.OpenFirstGame();
+
+        gameStateService.TryRestore(new SavedGame(SecretCode, [], RevealSecretFromStart: false));
+
+        gameStateService.CanRestoreFreePlay.Should().BeFalse();
+    }
+
     private static readonly DateOnly Today = new(2026, 11, 3);
     private static readonly CodePeg[] NoGuess = [CodePeg.White, CodePeg.White, CodePeg.White, CodePeg.White];
 
@@ -567,8 +653,9 @@ public class GameStateServiceTests
         var gameStateService = CreateGameStateService();
 
         gameStateService.Mode.Should().Be(GameMode.FreePlay);
-        gameStateService.HasGame.Should().BeFalse();
-        gameStateService.HasFreePlayGame.Should().BeFalse();
+        gameStateService.CreateSavedGame().Should().BeNull();
+        gameStateService.TrySubmitGuess(NoGuess, out _, out var error).Should().BeFalse();
+        error.Should().Be("Start a new game to play.");
     }
 
     [Fact]

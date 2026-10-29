@@ -4,13 +4,15 @@
     max-width: 420px;
     margin: 0 auto;
     padding: 1.5rem 1rem;
-    font-family: 'Segoe UI', system-ui, sans-serif;
 }
 
+/* Stretch, not center: the title's border then runs level with New Game's
+   top and bottom edges. The gap matches the space below the header, so the
+   title sits as far from New Game as from the mode switch. */
 .game-header {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
+    align-items: stretch;
+    gap: 0.75rem;
     margin-bottom: 0.75rem;
 }
 
@@ -84,18 +86,24 @@
     cursor: pointer;
 }
 
+/* Grows to fill the row up to the gap, keeping New Game on the column's
+   right edge. letter-spacing also trails the last letter, so the right
+   padding gives that 0.15em back to keep the word centered in its border. */
 .game-title {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 calc(0.5rem - 0.15em) 0 0.5rem;
+    border-right: 2px solid #5a1117;
+    border-bottom: 2px solid #5a1117;
+    border-radius: 6px;
     font-size: 1.75rem;
     font-weight: 900;
+    line-height: 1;
     letter-spacing: 0.15em;
     color: #5a1117;
     margin: 0;
-}
-
-.board-placeholder {
-    text-align: center;
-    color: #6b7280;
-    padding: 2rem;
 }
 
 /* === Buttons === */
@@ -112,9 +120,11 @@
     transition: background 0.15s;
 }
 
+/* flex: none keeps the growing title from squeezing the label onto two lines. */
 .btn-new-game {
+    flex: none;
     background: #5a1117;
-    padding: 0.5rem 1.25rem;
+    padding: 0.5rem 1rem;
 }
 
 .btn-new-game:hover {
@@ -427,12 +437,15 @@
     text-align: center;
 }
 
+/* A <pre> keeps the share text's line breaks; the page font replaces the
+   browser's monospace default so the box reads like the rest of the game. */
 .share-text {
     margin: 0;
     padding: 8px 12px;
     border-radius: 6px;
     background: #f0e6c8;
     color: #1f2937;
+    font-family: inherit;
     font-size: 0.875rem;
     line-height: 1.4;
     user-select: all;

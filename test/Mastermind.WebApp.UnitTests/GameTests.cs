@@ -54,12 +54,38 @@ public class GameTests : BunitContext
     }
 
     [Fact]
-    public void Should_ShowThePlaceholder_When_NoGameHasStarted()
+    public void Should_OpenABoardReadyToPlay_When_ThePageFirstRenders()
     {
         var cut = Render<Game>();
 
-        cut.FindAll(".board-placeholder").Should().HaveCount(1);
-        cut.FindAll(".board").Should().BeEmpty();
+        cut.FindAll(".board-row").Should().HaveCount(10);
+        cut.FindAll(".board-row.played").Should().BeEmpty();
+        cut.FindAll(".drop-zone").Should().HaveCount(4);
+        cut.Find(".mode-free").GetAttribute("aria-pressed").Should().Be("true");
+    }
+
+    [Fact]
+    public void Should_NotSaveTheFirstGame_When_ThePageOpensWithNoSavedGame()
+    {
+        var cut = Render<Game>();
+
+        // Saving the board the page opened with would overwrite a save still loading.
+        cut.WaitForAssertion(() => JSInterop.VerifyInvoke("localStorage.getItem", calledTimes: 4));
+        JSInterop.Invocations["localStorage.setItem"].Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Should_KeepTheFirstGame_When_TheSavedGameArrivesAfterAGuessInIt()
+    {
+        var pendingLoad = JSInterop.Setup<string?>("localStorage.getItem", SavedGameKey);
+        var cut = Render<Game>();
+        PlayGuess(cut, [CodePeg.White, CodePeg.White, CodePeg.White, CodePeg.White]);
+
+        pendingLoad.SetResult("""{"secretCode":["Red","Blue","Yellow","Green"],"guesses":[["Red","Yellow","White","White"],["Red","Red","Red","Red"]],"revealSecretFromStart":false}""");
+        // Queue behind the page's resumed load, as in the New Game race test.
+        await cut.InvokeAsync(() => { });
+
+        cut.FindAll(".board-row.played").Should().ContainSingle();
     }
 
     [Fact]
@@ -382,6 +408,30 @@ public class GameTests : BunitContext
         shield.Should().Equal("peg--red", "peg--blue", "peg--yellow", "peg--green");
     }
 
+    [Fact]
+    public void Should_RevealTheFirstGamesSecretCode_When_DebugIsRequestedInDevelopment()
+    {
+        _hostEnvironment.Environment = "Development";
+        RequestDebugMode();
+
+        var cut = Render<Game>();
+
+        var shield = cut.FindAll(".shield-hole")
+            .Select(hole => hole.ClassList.Single(name => name != "shield-hole"));
+        shield.Should().Equal("peg--red", "peg--blue", "peg--yellow", "peg--green");
+    }
+
+    [Fact]
+    public void Should_HideTheFirstGamesSecretCode_When_DebugIsRequestedInProduction()
+    {
+        RequestDebugMode();
+
+        var cut = Render<Game>();
+
+        cut.FindAll(".shield-hole").Should().HaveCount(4);
+        cut.FindAll(".shield-hole").Should().OnlyContain(hole => hole.ClassList.Count() == 1);
+    }
+
     [Theory]
     [InlineData("Production")]
     [InlineData("Staging")]
@@ -420,14 +470,13 @@ public class GameTests : BunitContext
         var cut = Render<Game>();
 
         cut.WaitForAssertion(() => cut.FindAll(".board-row.played").Should().HaveCount(1));
-        cut.FindAll(".board-placeholder").Should().BeEmpty();
         cut.FindAll(".board-row.played .peg-hole").Select(peg => peg.ClassList.Last())
             .Should().Equal("peg--red", "peg--yellow", "peg--white", "peg--white");
         cut.FindAll(".drop-zone").Should().HaveCount(4);
     }
 
     [Fact]
-    public void Should_KeepThePlaceholder_When_TheSavedGameIsInvalid()
+    public void Should_KeepTheFirstGame_When_TheSavedGameIsInvalid()
     {
         // Two guesses of the secret: the game ended at the first, so the save cannot be replayed.
         JSInterop.Setup<string?>("localStorage.getItem", SavedGameKey)
@@ -436,11 +485,12 @@ public class GameTests : BunitContext
         var cut = Render<Game>();
 
         cut.WaitForAssertion(() => JSInterop.VerifyInvoke("localStorage.getItem", calledTimes: 4));
-        cut.FindAll(".board-placeholder").Should().HaveCount(1);
+        cut.FindAll(".board-row.played").Should().BeEmpty();
+        cut.FindAll(".drop-zone").Should().HaveCount(4);
     }
 
     [Fact]
-    public void Should_KeepThePlaceholder_When_TheSavedGameHasANullGuess()
+    public void Should_KeepTheFirstGame_When_TheSavedGameHasANullGuess()
     {
         JSInterop.Setup<string?>("localStorage.getItem", SavedGameKey)
             .SetResult("""{"secretCode":["Red","Blue","Yellow","Green"],"guesses":[null],"revealSecretFromStart":false}""");
@@ -448,7 +498,8 @@ public class GameTests : BunitContext
         var cut = Render<Game>();
 
         cut.WaitForAssertion(() => JSInterop.VerifyInvoke("localStorage.getItem", calledTimes: 4));
-        cut.FindAll(".board-placeholder").Should().HaveCount(1);
+        cut.FindAll(".board-row.played").Should().BeEmpty();
+        cut.FindAll(".drop-zone").Should().HaveCount(4);
     }
 
     [Fact]
@@ -508,11 +559,10 @@ public class GameTests : BunitContext
     }
 
     [Fact]
-    public void Should_ShowTheStatsPanel_When_NoGameHasStartedYet()
+    public void Should_ShowTheStatsPanel_When_ThePageFirstRenders()
     {
         var cut = Render<Game>();
 
-        cut.FindAll(".board-placeholder").Should().HaveCount(1);
         cut.FindAll(".stats").Should().HaveCount(1);
         PlayedTile(cut).Should().Be("0");
     }
@@ -734,7 +784,6 @@ public class GameTests : BunitContext
         var cut = RenderAndOpenTheDailyPuzzle();
 
         cut.FindAll(".board-row").Should().HaveCount(10);
-        cut.FindAll(".board-placeholder").Should().BeEmpty();
         cut.Find(".mode-daily").GetAttribute("aria-pressed").Should().Be("true");
         cut.Find(".stats-area").HasAttribute("hidden").Should().BeTrue();
     }

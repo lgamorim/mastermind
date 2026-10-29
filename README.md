@@ -41,7 +41,7 @@ dotnet run --project src/Mastermind.WebApp
 
 Then open the printed localhost URL in your browser.
 
-1. Click **New Game** to start. The Code Maker silently locks in a secret code behind the shield at the top of the board.
+1. The board opens ready to play: the Code Maker has already locked in a secret code behind the shield at the top. Click **New Game** at any time to start over with a new code.
 2. **Drag** a colored peg from the palette at the bottom and **drop** it onto one of the four peg holes in the active row. Click a filled hole to clear it.
 3. Once all four holes are filled, click **Submit** to lock in your guess.
 4. The Code Maker responds with key pegs (black and white dots) on the right side of the row. Use that feedback to refine your next guess.
