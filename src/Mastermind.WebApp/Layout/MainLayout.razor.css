@@ -1,0 +1,8 @@
+/* Quiet, under everything: it is there for whoever needs to know which build they
+   have. The grey is as light as small text can go and still meet 4.5:1 contrast. */
+.app-version {
+    padding: 0 1rem 1.5rem;
+    color: #6b7280;
+    font-size: 0.75rem;
+    text-align: center;
+}
