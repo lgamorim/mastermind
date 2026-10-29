@@ -787,6 +787,202 @@ public class GameStateServiceTests
         gameStateService.DailyDate.Should().BeNull(scenario);
     }
 
+    // Always guessing the first code that still fits beats the evil code maker in 8 guesses
+    // (values from an independent Python implementation of its rule).
+    private static readonly CodePeg[][] FirstFitEvilWin =
+    [
+        [CodePeg.Red, CodePeg.Red, CodePeg.Red, CodePeg.Red],
+        [CodePeg.Blue, CodePeg.Blue, CodePeg.Blue, CodePeg.Blue],
+        [CodePeg.Yellow, CodePeg.Yellow, CodePeg.Yellow, CodePeg.Yellow],
+        [CodePeg.Yellow, CodePeg.Green, CodePeg.Green, CodePeg.Green],
+        [CodePeg.White, CodePeg.Yellow, CodePeg.White, CodePeg.White],
+        [CodePeg.White, CodePeg.Black, CodePeg.Yellow, CodePeg.Black],
+        [CodePeg.White, CodePeg.Black, CodePeg.Black, CodePeg.Yellow],
+        [CodePeg.Black, CodePeg.Black, CodePeg.Yellow, CodePeg.White],
+    ];
+
+    private static readonly CodePeg[] FourReds = [CodePeg.Red, CodePeg.Red, CodePeg.Red, CodePeg.Red];
+
+    [Fact]
+    public void Should_PlayTheEvilCodeMaker_When_EvilModeIsOpened()
+    {
+        var secretCodeGenerator = CreateSecretCodeGenerator(SecretCode);
+        var gameStateService = new GameStateService(secretCodeGenerator);
+
+        gameStateService.StartEvil();
+        gameStateService.TrySubmitGuess([CodePeg.Red, CodePeg.Red, CodePeg.Blue, CodePeg.Blue], out var response, out _);
+
+        gameStateService.Mode.Should().Be(GameMode.Evil);
+        response.Should().Be(new Response(0, 0));
+        secretCodeGenerator.DidNotReceiveWithAnyArgs().Generate(default);
+    }
+
+    [Fact]
+    public void Should_LeaveTheStatsAlone_When_AnEvilGameIsWon()
+    {
+        var gameStateService = CreateGameStateService();
+        gameStateService.StartEvil();
+
+        foreach (var guess in FirstFitEvilWin)
+        {
+            gameStateService.TrySubmitGuess(guess, out _, out _);
+        }
+
+        gameStateService.HasWon.Should().BeTrue();
+        gameStateService.Stats.Should().BeEquivalentTo(GameStats.Empty);
+    }
+
+    [Fact]
+    public void Should_LeaveTheStatsAlone_When_AnEvilGameIsLost()
+    {
+        var gameStateService = CreateGameStateService();
+        gameStateService.StartEvil();
+
+        // Four Reds score nothing, after which no remaining code has a Red, so they keep scoring nothing.
+        for (var attempt = 0; attempt < BoardConfig.Standard.TotalRows; attempt++)
+        {
+            gameStateService.TrySubmitGuess(FourReds, out _, out _);
+        }
+
+        gameStateService.IsGameOver.Should().BeTrue();
+        gameStateService.HasWon.Should().BeFalse();
+        gameStateService.Stats.Should().BeEquivalentTo(GameStats.Empty);
+    }
+
+    [Fact]
+    public void Should_RevealTheCodeItSettledOn_When_AnEvilGameIsLost()
+    {
+        var gameStateService = CreateGameStateService();
+        gameStateService.StartEvil();
+
+        for (var attempt = 0; attempt < BoardConfig.Standard.TotalRows; attempt++)
+        {
+            gameStateService.TrySubmitGuess(FourReds, out _, out _);
+        }
+
+        // The first code without a Red, in the fixed order the evil code maker keeps.
+        gameStateService.RevealedSecretCode.Should().Equal(CodePeg.Blue, CodePeg.Blue, CodePeg.Blue, CodePeg.Blue);
+    }
+
+    [Fact]
+    public void Should_RevealNothing_When_AnEvilGameIsInProgressEvenInDebugMode()
+    {
+        var gameStateService = CreateGameStateService();
+        gameStateService.IsDebugMode = true;
+
+        gameStateService.StartEvil();
+
+        gameStateService.RevealedSecretCode.Should().BeNull();
+    }
+
+    [Fact]
+    public void Should_ResumeTheEvilGame_When_EvilModeIsOpenedAgain()
+    {
+        var gameStateService = CreateGameStateService();
+        gameStateService.StartEvil();
+        gameStateService.TrySubmitGuess(FourReds, out _, out _);
+        gameStateService.ShowFreePlay();
+
+        gameStateService.StartEvil();
+
+        gameStateService.History.Should().ContainSingle();
+    }
+
+    [Fact]
+    public void Should_StartAFreshEvilGameWithoutRecordingALoss_When_TriedAgain()
+    {
+        var gameStateService = CreateGameStateService();
+        gameStateService.StartEvil();
+        gameStateService.TrySubmitGuess(FourReds, out _, out _);
+
+        gameStateService.StartNewEvilGame();
+
+        gameStateService.Mode.Should().Be(GameMode.Evil);
+        gameStateService.History.Should().BeEmpty();
+        gameStateService.Stats.GamesPlayed.Should().Be(0);
+    }
+
+    [Fact]
+    public void Should_KeepTheFreePlayGame_When_SwitchingToEvilModeAndBack()
+    {
+        var gameStateService = CreateGameStateService();
+        gameStateService.StartNewGame();
+        gameStateService.TrySubmitGuess(NoGuess, out _, out _);
+        gameStateService.StartEvil();
+        gameStateService.TrySubmitGuess(FourReds, out _, out _);
+
+        gameStateService.ShowFreePlay();
+
+        gameStateService.History.Should().ContainSingle().Which.Guess.Should().Equal(NoGuess);
+        gameStateService.Stats.GamesPlayed.Should().Be(0);
+    }
+
+    [Fact]
+    public void Should_HaveNoEvilSave_When_NoEvilGameHasBeenPlayed()
+    {
+        var gameStateService = CreateGameStateService();
+
+        var savedEvil = gameStateService.CreateSavedEvilGame();
+
+        savedEvil.Should().BeNull();
+    }
+
+    [Fact]
+    public void Should_SaveTheEvilGuesses_When_AnEvilGameHasGuesses()
+    {
+        var gameStateService = CreateGameStateService();
+        gameStateService.StartEvil();
+        gameStateService.TrySubmitGuess(FourReds, out _, out _);
+
+        var savedEvil = gameStateService.CreateSavedEvilGame();
+
+        savedEvil.Should().BeEquivalentTo(new { Guesses = new[] { FourReds } });
+    }
+
+    [Fact]
+    public void Should_ReplayTheEvilGameForLater_When_ItsSaveIsRestored()
+    {
+        var gameStateService = CreateGameStateService();
+
+        var restored = gameStateService.TryRestoreEvil(new SavedEvilGame([[CodePeg.Red, CodePeg.Red, CodePeg.Blue, CodePeg.Blue]]));
+
+        restored.Should().BeTrue();
+        gameStateService.HasEvilGame.Should().BeTrue();
+        gameStateService.Mode.Should().Be(GameMode.FreePlay);
+    }
+
+    [Fact]
+    public void Should_GiveTheSameAnswers_When_ARestoredEvilGameIsOpened()
+    {
+        var gameStateService = CreateGameStateService();
+        gameStateService.TryRestoreEvil(new SavedEvilGame([[CodePeg.Red, CodePeg.Red, CodePeg.Blue, CodePeg.Blue]]));
+
+        gameStateService.StartEvil();
+
+        gameStateService.History.Should().ContainSingle().Which.Response.Should().Be(new Response(0, 0));
+    }
+
+    public static TheoryData<string, SavedEvilGame> UnusableEvilSaves => new()
+    {
+        { "undefined peg", new SavedEvilGame([[CodePeg.Red, CodePeg.Red, CodePeg.Red, (CodePeg)42]]) },
+        // null! stands in for "guesses":[null] in an edited save, which JSON's nullable checks let through.
+        { "null guess", new SavedEvilGame([null!]) },
+        { "guess too short", new SavedEvilGame([[CodePeg.Red]]) },
+        { "guess after the win", new SavedEvilGame([.. FirstFitEvilWin, FourReds]) },
+    };
+
+    [Theory]
+    [MemberData(nameof(UnusableEvilSaves))]
+    public void Should_IgnoreTheEvilSave_When_ItIsNotAPlayableGame(string scenario, SavedEvilGame savedEvilGame)
+    {
+        var gameStateService = CreateGameStateService();
+
+        var restored = gameStateService.TryRestoreEvil(savedEvilGame);
+
+        restored.Should().BeFalse(scenario);
+        gameStateService.HasEvilGame.Should().BeFalse(scenario);
+    }
+
     private static GameStateService CreateGameStateService()
     {
         return new GameStateService(CreateSecretCodeGenerator(SecretCode));

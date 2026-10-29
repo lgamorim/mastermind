@@ -48,16 +48,25 @@ public sealed class ConsoleAppRunner(
 
     private int RunGame(string[] args)
     {
-        var isDebug = args.Length > 0 && args[0].ToUpperInvariant().Equals("DEBUG");
+        var flags = args.Select(arg => arg.ToUpperInvariant()).ToHashSet();
+        var isDebug = flags.Contains("DEBUG");
+        var isEvil = flags.Contains("EVIL");
 
         ShowBanner();
         ShowCodePegColors();
         ShowLegend();
         WriteLine($"\n[~] The Code Breaker plays by typing {BoardConfig.Standard.ShieldSize} colors separated by a blank space.");
 
+        if (isEvil)
+        {
+            WriteLine("\n[!] Evil mode: the Code Maker won't commit to a code.");
+            WriteLine("    It keeps every code that fits its answers and answers to keep as many as it can.");
+            WriteLine("    To win, narrow it down to one code and guess that one.");
+        }
+
         do
         {
-            var outcome = RunSingleGame(isDebug);
+            var outcome = RunSingleGame(isDebug, isEvil);
 
             // An abandoned round is neither a win nor a loss, and the player has
             // already said they are done -- leave the tally alone and do not ask
@@ -91,10 +100,10 @@ public sealed class ConsoleAppRunner(
         return answer is "y" or "yes";
     }
 
-    private GameOutcome RunSingleGame(bool isDebug)
+    private GameOutcome RunSingleGame(bool isDebug, bool isEvil)
     {
-        var game = new Game(secretCodeGenerator);
-        ShowCodeMakerPlayed(game.SecretCode, isDebug);
+        var game = isEvil ? new Game(new EvilCodeMaker()) : new Game(secretCodeGenerator);
+        ShowCodeMakerPlayed(game.SecretCode, isDebug, isEvil);
 
         while (game.Status is GameStatus.InProgress)
         {
@@ -106,7 +115,7 @@ public sealed class ConsoleAppRunner(
                 if (turn.Action is BreakerAction.Quit)
                 {
                     RenderBoard(game.History);
-                    RevealSecretCode(game.SecretCode);
+                    RevealSecretCode(game.SecretCode, isEvil);
                     WriteLineColored(QuitMessage, Color.Aqua);
                     return GameOutcome.Abandoned;
                 }
@@ -135,15 +144,16 @@ public sealed class ConsoleAppRunner(
             return GameOutcome.CodeBreakerWon;
         }
 
-        RevealSecretCode(game.SecretCode);
+        RevealSecretCode(game.SecretCode, isEvil);
         WriteLineColored(CodeMakerWinsMessage, Color.Red);
         WriteLine("    Better luck next time!");
         return GameOutcome.CodeMakerWon;
     }
 
-    private void RevealSecretCode(IReadOnlyList<CodePeg> secretCode)
+    // The evil code maker never had a secret, only a code that fits everything it answered.
+    private void RevealSecretCode(IReadOnlyList<CodePeg> secretCode, bool isEvil)
     {
-        WriteLine("\n[i] The secret code was:");
+        WriteLine(isEvil ? "\n[i] The Code Maker settled on:" : "\n[i] The secret code was:");
         WritePegs(secretCode);
     }
 
@@ -176,8 +186,16 @@ public sealed class ConsoleAppRunner(
         return Enum.GetNames<CodePeg>();
     }
 
-    private void ShowCodeMakerPlayed(IReadOnlyList<CodePeg> secretCode, bool isDebug)
+    // In evil mode there is no code to show, even in debug: the one that fits so far is just
+    // the first of 1,296 candidates and changes with every answer.
+    private void ShowCodeMakerPlayed(IReadOnlyList<CodePeg> secretCode, bool isDebug, bool isEvil)
     {
+        if (isEvil)
+        {
+            WriteLine("[^] The Code Maker is keeping its options open.");
+            return;
+        }
+
         WriteLine("[^] The Code Maker has played.");
 
         if (isDebug)

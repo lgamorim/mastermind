@@ -10,11 +10,12 @@
 
     <div class="game-options">
         <div class="mode-switch" role="group" aria-label="Game">
-            <button type="button" class="mode-free" aria-pressed="@(IsDaily ? "false" : "true")" @onclick="OpenFreePlay">Free play</button>
+            <button type="button" class="mode-free" aria-pressed="@(IsFreePlay ? "true" : "false")" @onclick="OpenFreePlay">Free play</button>
             @if (DailyAvailable)
             {
                 <button type="button" class="mode-daily" aria-pressed="@(IsShowingTodaysDaily ? "true" : "false")" @onclick="OpenDaily">Daily #@DailyPuzzle.NumberFor(Today)</button>
             }
+            <button type="button" class="mode-evil" aria-pressed="@(IsEvil ? "true" : "false")" @onclick="OpenEvil">Evil</button>
         </div>
         <label class="coach-toggle"><input type="checkbox" @bind="_coachOn" /> Coach</label>
     </div>
@@ -134,6 +135,13 @@
                 </div>
             }
 
+            @if (IsEvil && GameState.IsGameOver)
+            {
+                <div class="evil-again">
+                    <button type="button" class="btn-try-again" @onclick="StartNewEvilGame">Try again</button>
+                </div>
+            }
+
             @if (IsDaily && GameState.IsGameOver)
             {
                 <div class="daily-share">
@@ -152,9 +160,9 @@
         </div>
     }
 
-    @* Free-play statistics only: hidden, not removed, during the daily puzzle so the panel
-       keeps its collapsed or expanded state for when the player switches back. *@
-    <div class="stats-area" hidden="@IsDaily">
+    @* Free-play statistics only: hidden, not removed, in the other modes so the panel keeps
+       its collapsed or expanded state for when the player switches back. *@
+    <div class="stats-area" hidden="@(!IsFreePlay)">
         <StatsPanel Stats="GameState.Stats" HighlightedGuessCount="@(GameState.HasWon ? GameState.History.Count : null)" />
     </div>
 </div>

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using FluentAssertions;
 using Xunit;
 using static Mastermind.Core.CodePeg;
@@ -296,11 +297,94 @@ public class GameTests
         game.History[0].Guess[0].Should().Be(White);
     }
 
+    [Fact]
+    public void Should_ThrowArgumentNullException_When_TheCodeMakerIsNull()
+    {
+        // null! deliberately breaks the non-nullable contract: rejecting null is what this test checks.
+        var action = new Action(() => new Game((ICodeMaker)null!));
+
+        action.Should().ThrowExactly<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void Should_RecordTheCodeMakersAnswer_When_AGuessIsPlayed()
+    {
+        var codeMaker = new ScriptedCodeMaker(new Response(2, 1));
+        var game = new Game(codeMaker);
+
+        var response = game.Guess([Red, Red, Red, Red]);
+
+        response.Should().Be(new Response(2, 1));
+        game.History.Single().Response.Should().Be(new Response(2, 1));
+        codeMaker.Guesses.Should().ContainSingle().Which.Should().Equal(Red, Red, Red, Red);
+    }
+
+    [Fact]
+    public void Should_EndWithCodeBreakerWon_When_TheCodeMakerAnswersAllBlack()
+    {
+        var game = new Game(new ScriptedCodeMaker(new Response(4, 0)));
+
+        game.Guess([Red, Red, Red, Red]);
+
+        game.Status.Should().Be(GameStatus.CodeBreakerWon);
+    }
+
+    [Fact]
+    public void Should_ShowTheCodeMakersSecret_When_TheSecretIsRead()
+    {
+        var game = new Game(new ScriptedCodeMaker(new Response(0, 0)));
+
+        game.SecretCode.Should().Equal(ScriptedCodeMaker.Secret);
+    }
+
+    [Theory]
+    [InlineData(3)]
+    [InlineData(5)]
+    public void Should_NotAskTheCodeMaker_When_TheGuessHasTheWrongLength(int length)
+    {
+        var codeMaker = new ScriptedCodeMaker(new Response(0, 0));
+        var game = new Game(codeMaker);
+
+        var action = new Action(() => game.Guess(new CodePeg[length]));
+
+        action.Should().ThrowExactly<ArgumentException>();
+        codeMaker.Guesses.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Should_NotAskTheCodeMaker_When_TheGameIsOver()
+    {
+        var codeMaker = new ScriptedCodeMaker(new Response(4, 0));
+        var game = new Game(codeMaker);
+        game.Guess([Red, Red, Red, Red]);
+
+        var action = new Action(() => game.Guess([Blue, Blue, Blue, Blue]));
+
+        action.Should().ThrowExactly<InvalidOperationException>();
+        codeMaker.Guesses.Should().ContainSingle();
+    }
+
     private static void PlayWrongGuesses(Game game, int count)
     {
         for (var i = 0; i < count; i++)
         {
             game.Guess(WrongGuess);
+        }
+    }
+
+    // Gives the same answer to every guess and records what it was asked.
+    private sealed class ScriptedCodeMaker(Response answer) : ICodeMaker
+    {
+        public static readonly CodePeg[] Secret = [Green, Green, White, White];
+
+        public List<CodePeg[]> Guesses { get; } = [];
+
+        public IReadOnlyList<CodePeg> SecretCode => Secret;
+
+        public Response Answer(IReadOnlyList<CodePeg> guess)
+        {
+            Guesses.Add([.. guess]);
+            return answer;
         }
     }
 

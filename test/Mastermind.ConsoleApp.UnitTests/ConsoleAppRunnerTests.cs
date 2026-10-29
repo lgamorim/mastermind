@@ -559,6 +559,83 @@ public class ConsoleAppRunnerTests
         output.ToString().Should().Contain("Commands: /help, /history, /coach, /quit.");
     }
 
+    [Fact]
+    public void Should_ExplainEvilMode_When_TheEvilArgumentIsGiven()
+    {
+        var output = new StringWriter();
+        var runner = CreateRunner(input: string.Empty, output: output);
+
+        runner.Run(["EVIL"]);
+
+        output.ToString().Should().Contain("[!] Evil mode: the Code Maker won't commit to a code.");
+    }
+
+    [Fact]
+    public void Should_NeverAskForASecret_When_EvilModeIsOn()
+    {
+        var secretCodeGenerator = CreateSecretCodeGenerator(SecretCode);
+        var runner = new ConsoleAppRunner(secretCodeGenerator, new StringReader("/quit"), CreateConsole(new StringWriter()), new StringWriter());
+
+        runner.Run(["evil"]);
+
+        secretCodeGenerator.DidNotReceiveWithAnyArgs().Generate(default);
+    }
+
+    [Fact]
+    public void Should_AnswerAsTheEvilCodeMaker_When_EvilModeIsOn()
+    {
+        // Against the fixed secret Red Blue Yellow Green this guess would score one black and one
+        // white; the evil code maker answers "nothing right", which keeps 256 codes alive.
+        var input = string.Join(Environment.NewLine, "Red Red Blue Blue", "/quit");
+        var output = new StringWriter();
+        var runner = CreateRunner(input: input, output: output);
+
+        runner.Run(["EVIL"]);
+
+        LineAfter(output.ToString(), "[^] The Code Maker has responded:").Should().Be("none");
+    }
+
+    [Fact]
+    public void Should_RevealTheCodeItSettledOn_When_AnEvilRoundIsQuit()
+    {
+        var input = string.Join(Environment.NewLine, "Red Red Blue Blue", "/quit");
+        var output = new StringWriter();
+        var runner = CreateRunner(input: input, output: output);
+
+        runner.Run(["EVIL"]);
+
+        CollapseSpaces(LineAfter(output.ToString(), "[i] The Code Maker settled on:")).Should().Be("● Yellow ● Yellow ● Yellow ● Yellow");
+        output.ToString().Should().NotContain("The secret code was");
+    }
+
+    [Fact]
+    public void Should_KeepTheCodeHidden_When_EvilModeRunsWithDebug()
+    {
+        var output = new StringWriter();
+        var runner = CreateRunner(input: "/quit", output: output);
+
+        runner.Run(["DEBUG", "EVIL"]);
+
+        LineAfter(output.ToString(), "[^] The Code Maker is keeping its options open.").Should().StartWith("[>]");
+    }
+
+    [Fact]
+    public void Should_LetTheCodeBreakerWin_When_TheFieldIsNarrowedToOneCodeAndGuessed()
+    {
+        // Always guessing the first code that still fits beats the evil code maker in 8.
+        var input = string.Join(Environment.NewLine,
+            "Red Red Red Red", "Blue Blue Blue Blue", "Yellow Yellow Yellow Yellow", "Yellow Green Green Green",
+            "White Yellow White White", "White Black Yellow Black", "White Black Black Yellow", "Black Black Yellow White");
+        var output = new StringWriter();
+        var runner = CreateRunner(input: input, output: output);
+
+        runner.Run(["EVIL"]);
+
+        output.ToString().Should().Contain("[~] Code Breaker wins!");
+        output.ToString().Should().Contain("Code Breaker play 8/10");
+        output.ToString().Should().NotContain("Code Breaker play 9/10");
+    }
+
     private static ConsoleAppRunner CreateRunner(string input, TextWriter output)
     {
         return new ConsoleAppRunner(

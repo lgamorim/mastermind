@@ -19,6 +19,7 @@ public sealed class GameStorage(IJSRuntime jsRuntime)
     private const string GameKey = "mastermind.savedGame.v1";
     private const string StatsKey = "mastermind.stats.v1";
     private const string DailyKey = "mastermind.daily.v1";
+    private const string EvilKey = "mastermind.evil.v1";
 
     public Task<SavedGame?> LoadGameAsync() => LoadAsync(GameKey, GameStorageJsonContext.Default.SavedGame);
 
@@ -32,6 +33,11 @@ public sealed class GameStorage(IJSRuntime jsRuntime)
 
     public Task SaveDailyGameAsync(SavedDailyGame savedDailyGame) =>
         SaveAsync(DailyKey, savedDailyGame, GameStorageJsonContext.Default.SavedDailyGame);
+
+    public Task<SavedEvilGame?> LoadEvilGameAsync() => LoadAsync(EvilKey, GameStorageJsonContext.Default.SavedEvilGame);
+
+    public Task SaveEvilGameAsync(SavedEvilGame savedEvilGame) =>
+        SaveAsync(EvilKey, savedEvilGame, GameStorageJsonContext.Default.SavedEvilGame);
 
     private async Task<T?> LoadAsync<T>(string key, JsonTypeInfo<T> typeInfo)
         where T : class
@@ -71,4 +77,5 @@ public sealed class GameStorage(IJSRuntime jsRuntime)
 [JsonSerializable(typeof(SavedGame))]
 [JsonSerializable(typeof(GameStats))]
 [JsonSerializable(typeof(SavedDailyGame))]
+[JsonSerializable(typeof(SavedEvilGame))]
 internal sealed partial class GameStorageJsonContext : JsonSerializerContext;

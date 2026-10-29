@@ -370,6 +370,30 @@
     font-size: 0.8rem;
 }
 
+/* === Evil Mastermind: another round after one ends === */
+
+.evil-again {
+    display: flex;
+    justify-content: center;
+    margin-top: 12px;
+}
+
+.btn-try-again {
+    padding: 0.5rem 1.5rem;
+    border: none;
+    border-radius: 6px;
+    background: #b45309;
+    color: #fff;
+    font-size: 0.875rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+}
+
+.btn-try-again:hover {
+    background: #92400e;
+}
+
 /* === Daily result sharing === */
 
 .daily-share {

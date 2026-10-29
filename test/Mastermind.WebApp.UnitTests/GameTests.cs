@@ -435,7 +435,7 @@ public class GameTests : BunitContext
 
         var cut = Render<Game>();
 
-        cut.WaitForAssertion(() => JSInterop.VerifyInvoke("localStorage.getItem", calledTimes: 3));
+        cut.WaitForAssertion(() => JSInterop.VerifyInvoke("localStorage.getItem", calledTimes: 4));
         cut.FindAll(".board-placeholder").Should().HaveCount(1);
     }
 
@@ -447,7 +447,7 @@ public class GameTests : BunitContext
 
         var cut = Render<Game>();
 
-        cut.WaitForAssertion(() => JSInterop.VerifyInvoke("localStorage.getItem", calledTimes: 3));
+        cut.WaitForAssertion(() => JSInterop.VerifyInvoke("localStorage.getItem", calledTimes: 4));
         cut.FindAll(".board-placeholder").Should().HaveCount(1);
     }
 
@@ -602,7 +602,7 @@ public class GameTests : BunitContext
 
         var cut = Render<Game>();
 
-        cut.WaitForAssertion(() => JSInterop.VerifyInvoke("localStorage.getItem", calledTimes: 3));
+        cut.WaitForAssertion(() => JSInterop.VerifyInvoke("localStorage.getItem", calledTimes: 4));
         PlayedTile(cut).Should().Be("0");
     }
 
@@ -879,13 +879,167 @@ public class GameTests : BunitContext
         cut.Find(".mode-daily").GetAttribute("aria-pressed").Should().Be("true");
     }
 
+    private const string EvilKey = "mastermind.evil.v1";
+
+    // Always guessing the first code that still fits beats the evil code maker in 8 guesses.
+    private static readonly CodePeg[][] FirstFitEvilWin =
+    [
+        [CodePeg.Red, CodePeg.Red, CodePeg.Red, CodePeg.Red],
+        [CodePeg.Blue, CodePeg.Blue, CodePeg.Blue, CodePeg.Blue],
+        [CodePeg.Yellow, CodePeg.Yellow, CodePeg.Yellow, CodePeg.Yellow],
+        [CodePeg.Yellow, CodePeg.Green, CodePeg.Green, CodePeg.Green],
+        [CodePeg.White, CodePeg.Yellow, CodePeg.White, CodePeg.White],
+        [CodePeg.White, CodePeg.Black, CodePeg.Yellow, CodePeg.Black],
+        [CodePeg.White, CodePeg.Black, CodePeg.Black, CodePeg.Yellow],
+        [CodePeg.Black, CodePeg.Black, CodePeg.Yellow, CodePeg.White],
+    ];
+
+    private IRenderedComponent<Game> RenderAndOpenEvilMode()
+    {
+        var cut = Render<Game>();
+        cut.Find(".mode-evil").Click();
+        return cut;
+    }
+
+    [Fact]
+    public void Should_ShowTheEvilBoardAndHideTheStats_When_EvilModeIsOpened()
+    {
+        var cut = RenderAndOpenEvilMode();
+
+        cut.FindAll(".board-row").Should().HaveCount(10);
+        cut.Find(".mode-evil").GetAttribute("aria-pressed").Should().Be("true");
+        cut.Find(".mode-free").GetAttribute("aria-pressed").Should().Be("false");
+        cut.Find(".stats-area").HasAttribute("hidden").Should().BeTrue();
+        cut.FindAll(".shield-hole").Should().OnlyContain(hole => hole.ClassList.Count() == 1);
+    }
+
+    [Fact]
+    public void Should_AnswerAsTheEvilCodeMaker_When_AGuessIsPlayedInEvilMode()
+    {
+        // The fixed secret Red Blue Yellow Green would score this one black and one white.
+        var cut = RenderAndOpenEvilMode();
+
+        PlayGuess(cut, [CodePeg.Red, CodePeg.Red, CodePeg.Blue, CodePeg.Blue]);
+
+        cut.FindAll(".board-row.played .key-peg-dot").Should().OnlyContain(dot => dot.ClassList.Contains("key-empty"));
+    }
+
+    [Fact]
+    public void Should_AnnounceTheWinAndOfferAnotherGame_When_TheEvilCodeMakerIsBeaten()
+    {
+        var cut = RenderAndOpenEvilMode();
+
+        foreach (var guess in FirstFitEvilWin)
+        {
+            PlayGuess(cut, guess);
+        }
+
+        cut.Find(".result-banner").TextContent.Trim().Should().Be("You beat the Evil Code Maker in 8 guesses!");
+        cut.FindAll(".btn-try-again").Should().ContainSingle();
+    }
+
+    [Fact]
+    public void Should_ShowTheCodeItSettledOn_When_TheEvilCodeMakerWins()
+    {
+        var cut = RenderAndOpenEvilMode();
+
+        for (var row = 0; row < 10; row++)
+        {
+            PlayGuess(cut, [CodePeg.Red, CodePeg.Red, CodePeg.Red, CodePeg.Red]);
+        }
+
+        cut.Find(".result-banner").TextContent.Trim().Should().Be("The Evil Code Maker got away. It settled on the code shown above.");
+        cut.FindAll(".shield-hole").Select(hole => hole.ClassList.Last()).Should().OnlyContain(name => name == "peg--blue");
+    }
+
+    [Fact]
+    public void Should_StartAFreshEvilGame_When_TryAgainIsClicked()
+    {
+        var cut = RenderAndOpenEvilMode();
+        foreach (var guess in FirstFitEvilWin)
+        {
+            PlayGuess(cut, guess);
+        }
+
+        cut.Find(".btn-try-again").Click();
+
+        cut.FindAll(".board-row.played").Should().BeEmpty();
+        cut.FindAll(".result-banner").Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Should_SaveTheFreshEvilGame_When_TryAgainIsClicked()
+    {
+        var cut = RenderAndOpenEvilMode();
+        foreach (var guess in FirstFitEvilWin)
+        {
+            PlayGuess(cut, guess);
+        }
+
+        cut.Find(".btn-try-again").Click();
+
+        var evilSaves = JSInterop.Invocations["localStorage.setItem"].Where(call => (string?)call.Arguments[0] == EvilKey).ToList();
+        evilSaves[^1].Arguments[1].Should().Be("""{"guesses":[]}""");
+    }
+
+    [Fact]
+    public async Task Should_KeepTheNewEvilGame_When_TheSavedOneArrivesAfterItStarted()
+    {
+        var pendingLoad = JSInterop.Setup<string?>("localStorage.getItem", EvilKey);
+        var cut = Render<Game>();
+        cut.Find(".mode-evil").Click();
+        PlayGuess(cut, [CodePeg.Red, CodePeg.Red, CodePeg.Red, CodePeg.Red]);
+
+        pendingLoad.SetResult("""{"guesses":[["Blue","Blue","Blue","Blue"],["Green","Green","Green","Green"]]}""");
+        // The page resumes after the load on the renderer's dispatcher; queue behind
+        // it so the assertion sees the outcome rather than racing it.
+        await cut.InvokeAsync(() => { });
+
+        cut.FindAll(".board-row.played").Should().ContainSingle();
+    }
+
+    [Fact]
+    public void Should_NotOfferAnotherEvilGame_When_OneIsInProgress()
+    {
+        var cut = RenderAndOpenEvilMode();
+
+        PlayGuess(cut, [CodePeg.Red, CodePeg.Red, CodePeg.Red, CodePeg.Red]);
+
+        cut.FindAll(".btn-try-again").Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Should_SaveTheEvilGameUnderItsOwnKey_When_AnEvilGuessIsSubmitted()
+    {
+        var cut = RenderAndOpenEvilMode();
+
+        PlayGuess(cut, [CodePeg.Red, CodePeg.Red, CodePeg.Red, CodePeg.Red]);
+
+        var saves = JSInterop.Invocations["localStorage.setItem"];
+        saves.Should().ContainSingle(call => (string?)call.Arguments[0] == EvilKey)
+            .Which.Arguments[1].Should().Be("""{"guesses":[["Red","Red","Red","Red"]]}""");
+        saves.Should().NotContain(call => (string?)call.Arguments[0] == SavedGameKey);
+    }
+
+    [Fact]
+    public void Should_RestoreTheEvilGame_When_ThePageFirstRenders()
+    {
+        JSInterop.Setup<string?>("localStorage.getItem", EvilKey).SetResult("""{"guesses":[["Red","Red","Red","Red"]]}""");
+        var cut = Render<Game>();
+        cut.WaitForAssertion(() => JSInterop.VerifyInvoke("localStorage.getItem", calledTimes: 4));
+
+        cut.Find(".mode-evil").Click();
+
+        cut.FindAll(".board-row.played").Should().ContainSingle();
+    }
+
     [Fact]
     public void Should_RestoreTodaysDailyGame_When_ThePageFirstRenders()
     {
         JSInterop.Setup<string?>("localStorage.getItem", DailyKey)
             .SetResult("""{"date":"2026-11-03","guesses":[["White","White","White","White"]]}""");
         var cut = Render<Game>();
-        cut.WaitForAssertion(() => JSInterop.VerifyInvoke("localStorage.getItem", calledTimes: 3));
+        cut.WaitForAssertion(() => JSInterop.VerifyInvoke("localStorage.getItem", calledTimes: 4));
 
         cut.Find(".mode-daily").Click();
 

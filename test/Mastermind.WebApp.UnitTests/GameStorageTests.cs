@@ -14,6 +14,7 @@ public class GameStorageTests : BunitContext
     private const string GameKey = "mastermind.savedGame.v1";
     private const string StatsKey = "mastermind.stats.v1";
     private const string DailyKey = "mastermind.daily.v1";
+    private const string EvilKey = "mastermind.evil.v1";
 
     private static readonly SavedGame SampleGame = new(
         [CodePeg.Red, CodePeg.Blue, CodePeg.Yellow, CodePeg.Green],
@@ -172,6 +173,42 @@ public class GameStorageTests : BunitContext
         var saved = await CreateStorage().LoadDailyGameAsync();
 
         saved.Should().BeEquivalentTo(new { Date = new DateOnly(2026, 11, 3), Guesses = new[] { new[] { CodePeg.Red, CodePeg.Red, CodePeg.Blue, CodePeg.Blue } } });
+    }
+
+    [Fact]
+    public async Task Should_WriteTheGuessesUnderTheEvilKey_When_TheEvilGameIsSaved()
+    {
+        JSInterop.SetupVoid("localStorage.setItem", _ => true).SetVoidResult();
+
+        await CreateStorage().SaveEvilGameAsync(new SavedEvilGame([[CodePeg.Red, CodePeg.Red, CodePeg.Blue, CodePeg.Blue]]));
+
+        var save = JSInterop.VerifyInvoke("localStorage.setItem");
+        save.Arguments[0].Should().Be(EvilKey);
+        save.Arguments[1].Should().Be("""{"guesses":[["Red","Red","Blue","Blue"]]}""");
+    }
+
+    [Fact]
+    public async Task Should_LoadTheEvilGameThatWasSaved_When_ItIsReadBack()
+    {
+        JSInterop.Setup<string?>("localStorage.getItem", EvilKey).SetResult("""{"guesses":[["Red","Red","Blue","Blue"]]}""");
+
+        var saved = await CreateStorage().LoadEvilGameAsync();
+
+        saved.Should().BeEquivalentTo(new { Guesses = new[] { new[] { CodePeg.Red, CodePeg.Red, CodePeg.Blue, CodePeg.Blue } } });
+    }
+
+    [Theory]
+    [InlineData("{not json")]
+    [InlineData("{}")]
+    [InlineData("""{"guesses":null}""")]
+    [InlineData("""{"guesses":[["Red","Red","Blue","Purple"]]}""")]
+    public async Task Should_ReturnNull_When_TheSavedEvilGameIsDamaged(string json)
+    {
+        JSInterop.Setup<string?>("localStorage.getItem", EvilKey).SetResult(json);
+
+        var saved = await CreateStorage().LoadEvilGameAsync();
+
+        saved.Should().BeNull();
     }
 
     [Theory]

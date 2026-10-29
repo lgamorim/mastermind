@@ -11,12 +11,8 @@ namespace Mastermind.Core;
 /// </summary>
 public static class Coach
 {
-    // Every code on the board, generated once: 1,296 for 6 colors in 4 holes, small enough to
-    // filter in full after every guess.
-    private static readonly CodePeg[][] AllCodes = EnumerateCodes();
-
     /// <summary>How many codes the code maker can choose from.</summary>
-    public static int TotalCodes => AllCodes.Length;
+    public static int TotalCodes => CodeSpace.All.Count;
 
     /// <summary>Reviews a game's guesses in the order they were played.</summary>
     /// <param name="history">The played guesses with the responses they earned, oldest first.</param>
@@ -27,7 +23,7 @@ public static class Coach
     {
         ArgumentNullException.ThrowIfNull(history);
 
-        var candidates = AllCodes.AsEnumerable();
+        var candidates = CodeSpace.All.AsEnumerable();
         var notes = new List<CoachNote>(history.Count);
 
         for (var played = 0; played < history.Count; played++)
@@ -45,29 +41,5 @@ public static class Coach
         }
 
         return notes.AsReadOnly();
-    }
-
-    private static CodePeg[][] EnumerateCodes()
-    {
-        var colors = Enum.GetValues<CodePeg>();
-        var length = BoardConfig.Standard.ShieldSize;
-        var count = (int)Math.Pow(colors.Length, length);
-
-        var codes = new CodePeg[count][];
-        for (var index = 0; index < count; index++)
-        {
-            // Read the index as a number in base colors.Length, one digit per hole.
-            var code = new CodePeg[length];
-            var rest = index;
-            for (var hole = length - 1; hole >= 0; hole--)
-            {
-                code[hole] = colors[rest % colors.Length];
-                rest /= colors.Length;
-            }
-
-            codes[index] = code;
-        }
-
-        return codes;
     }
 }

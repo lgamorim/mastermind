@@ -69,6 +69,10 @@ Mastermind Daily #12 4/10
 
 If the browser doesn't allow copying, the text is shown for you to copy yourself. Daily games don't count toward the free-play statistics.
 
+#### Evil Mastermind (web app)
+
+Switch to **Evil** above the board to play against a Code Maker that never commits to a code. It keeps every code that fits its answers so far and answers each guess in whichever way keeps the most of them, so you win only by narrowing the field to a single code and then guessing it. Its feedback never contradicts itself. If it gets away, the shield shows the code it settled on, which fits every answer it gave. **Try again** starts a new evil game. Your evil game is saved separately, and evil games don't count toward your statistics. Tick **Coach** to watch how many codes it still has to hide behind.
+
 #### Coach (web app)
 
 Tick **Coach** above the board for feedback on your deduction. A line under the board says how many of the 1,296 possible codes still fit the feedback so far. If a guess could not have been the code, given what earlier feedback proved, the coach says which earlier guess it contradicts and marks the row's number in amber. The coach never reveals which codes remain, and coached games count toward your statistics.
@@ -108,6 +112,16 @@ When the game starts:
 Colors appear in terminals that support them. When output is redirected, or the `NO_COLOR` environment variable is set, the game prints plain text, and the color names still say which peg is which.
 
 Type `/coach` at any prompt to turn the coach on or off for the rest of the session. After each guess it prints how many codes still fit the feedback, and warns when a guess could not have been the code given earlier feedback. Typing `/coach` doesn't use up a guess.
+
+#### Evil mode (console app)
+
+Pass the `EVIL` argument to play Evil Mastermind, where the Code Maker never commits to a code:
+
+```
+dotnet run --project src/Mastermind.ConsoleApp -- EVIL
+```
+
+It keeps every code that fits its answers so far and answers each guess in whichever way keeps the most of them, so you win only by narrowing the field to a single code and then guessing it. Its feedback never contradicts itself, and if you lose, it shows the code it settled on, which fits every answer it gave. Every round in the session is evil, and even `DEBUG` shows no code up front, because there is none.
 
 #### Debug mode (console app)
 

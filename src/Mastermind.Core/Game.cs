@@ -5,12 +5,12 @@ namespace Mastermind.Core;
 
 /// <summary>
 /// A single round of Mastermind on the <see cref="BoardConfig.Standard"/> board:
-/// the code maker's secret code, the code breaker's guesses so far, and whether
+/// the code breaker's guesses so far, the code maker's answers to them, and whether
 /// either side has won.
 /// </summary>
 public sealed class Game
 {
-    private readonly DecodingBoard _decodingBoard = new();
+    private readonly ICodeMaker _codeMaker;
     private readonly List<GuessRecord> _history = [];
 
     /// <summary>Starts a game whose secret code comes from <paramref name="secretCodeGenerator"/>.</summary>
@@ -29,26 +29,30 @@ public sealed class Game
     /// <exception cref="ArgumentNullException"><paramref name="secretCode"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException"><paramref name="secretCode"/> does not have one peg per shield hole.</exception>
     public Game(CodePeg[] secretCode)
+        : this(new FixedCodeMaker(secretCode))
     {
-        ArgumentNullException.ThrowIfNull(secretCode);
+    }
 
-        // Copy what the caller hands in: a caller (or generator) that reuses its
-        // buffer must not be able to change this game's code afterwards.
-        _decodingBoard.PlayCodeMaker(new Shield(secretCode));
+    /// <summary>Starts a game against the given code maker.</summary>
+    /// <param name="codeMaker">Answers the code breaker's guesses.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="codeMaker"/> is <see langword="null"/>.</exception>
+    public Game(ICodeMaker codeMaker)
+    {
+        ArgumentNullException.ThrowIfNull(codeMaker);
 
-        SecretCode = ReadOnlySnapshot(secretCode);
+        _codeMaker = codeMaker;
         History = _history.AsReadOnly();
     }
 
     /// <summary>The board's shield size and number of rows.</summary>
-    public BoardConfig BoardConfig => _decodingBoard.BoardConfig;
+    public BoardConfig BoardConfig => BoardConfig.Standard;
 
     /// <summary>
-    /// The code maker's secret code. It is always available; when to show it to
-    /// the code breaker (on game over, or up front in a debug mode) is the
-    /// front-end's decision.
+    /// The code maker's secret code: a code that fits every answer so far. It is always
+    /// available; when to show it to the code breaker (on game over, or up front in a
+    /// debug mode) is the front-end's decision.
     /// </summary>
-    public IReadOnlyList<CodePeg> SecretCode { get; }
+    public IReadOnlyList<CodePeg> SecretCode => _codeMaker.SecretCode;
 
     /// <summary>Every guess played so far, oldest first.</summary>
     public IReadOnlyList<GuessRecord> History { get; }
@@ -66,11 +70,17 @@ public sealed class Game
     {
         if (Status is not GameStatus.InProgress)
             throw new InvalidOperationException("The game is over. Start a new game to play again.");
+        ArgumentNullException.ThrowIfNull(code);
+        if (code.Length != BoardConfig.ShieldSize)
+            throw new ArgumentException($"Code must have exactly {BoardConfig.ShieldSize} pegs.", nameof(code));
 
-        var response = _decodingBoard.PlayCodeBreaker(code);
-        _history.Add(new GuessRecord(_history.Count + 1, ReadOnlySnapshot(code), response));
+        // The code maker sees a copy, so neither it nor the caller can change the
+        // recorded guess afterwards.
+        var guess = ReadOnlySnapshot(code);
+        var response = _codeMaker.Answer(guess);
+        _history.Add(new GuessRecord(_history.Count + 1, guess, response));
 
-        if (_decodingBoard.HasCodeBreakerSolvedSecretCode(response))
+        if (response.BlackKeyPegs == BoardConfig.ShieldSize)
         {
             Status = GameStatus.CodeBreakerWon;
         }

@@ -59,7 +59,11 @@ public partial class Game
     // Hidden if the clock reads earlier than the first puzzle, which has no number.
     private bool DailyAvailable => Today >= DailyPuzzle.FirstDate;
 
+    private bool IsFreePlay => GameState.Mode is GameMode.FreePlay;
+
     private bool IsDaily => GameState.Mode is GameMode.Daily;
+
+    private bool IsEvil => GameState.Mode is GameMode.Evil;
 
     // A page left open past local midnight can still be showing yesterday's puzzle. The
     // player may finish it, but the Daily button then stands for the new day's puzzle, and
@@ -117,8 +121,11 @@ public partial class Game
         var savedDaily = await Storage.LoadDailyGameAsync();
         var dailyRestored = savedDaily is not null && GameState.DailyDate is null && GameState.TryRestoreDaily(savedDaily, Today);
 
+        var savedEvil = await Storage.LoadEvilGameAsync();
+        var evilRestored = savedEvil is not null && !GameState.HasEvilGame && GameState.TryRestoreEvil(savedEvil);
+
         // Restored outside any event handler, so Blazor does not re-render on its own.
-        if (statsRestored || gameRestored || dailyRestored)
+        if (statsRestored || gameRestored || dailyRestored || evilRestored)
         {
             await InvokeAsync(StateHasChanged);
         }
@@ -136,6 +143,20 @@ public partial class Game
     {
         GameState.ShowFreePlay();
         ResetBoardInput();
+    }
+
+    private void OpenEvil()
+    {
+        GameState.StartEvil();
+        ResetBoardInput();
+    }
+
+    private async Task StartNewEvilGame()
+    {
+        var statsBefore = GameState.Stats;
+        GameState.StartNewEvilGame();
+        ResetBoardInput();
+        await SaveProgressAsync(statsBefore);
     }
 
     private void OpenDaily()
@@ -160,10 +181,12 @@ public partial class Game
         var guesses = GameState.History.Count;
         var plural = guesses == 1 ? "" : "es";
 
-        return (GameState.DailyDate, IsDaily, GameState.HasWon) switch
+        return (GameState.Mode, GameState.DailyDate, GameState.HasWon) switch
         {
-            ({ } date, true, true) => $"You cracked Daily #{DailyPuzzle.NumberFor(date)} in {guesses} guess{plural}!",
-            ({ } date, true, false) => $"Daily #{DailyPuzzle.NumberFor(date)} kept its secret. A new puzzle starts at midnight.",
+            (GameMode.Daily, { } date, true) => $"You cracked Daily #{DailyPuzzle.NumberFor(date)} in {guesses} guess{plural}!",
+            (GameMode.Daily, { } date, false) => $"Daily #{DailyPuzzle.NumberFor(date)} kept its secret. A new puzzle starts at midnight.",
+            (GameMode.Evil, _, true) => $"You beat the Evil Code Maker in {guesses} guess{plural}!",
+            (GameMode.Evil, _, false) => "The Evil Code Maker got away. It settled on the code shown above.",
             (_, _, true) => $"You cracked the code in {guesses} guess{plural}!",
             _ => "The Code Maker wins — better luck next time!",
         };
@@ -199,6 +222,13 @@ public partial class Game
             if (IsShowingTodaysDaily && GameState.CreateSavedDailyGame() is { } savedDaily)
             {
                 await Storage.SaveDailyGameAsync(savedDaily);
+            }
+        }
+        else if (IsEvil)
+        {
+            if (GameState.CreateSavedEvilGame() is { } savedEvil)
+            {
+                await Storage.SaveEvilGameAsync(savedEvil);
             }
         }
         else if (GameState.CreateSavedGame() is { } savedGame)

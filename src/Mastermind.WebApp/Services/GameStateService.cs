@@ -2,19 +2,22 @@
 
 namespace Mastermind.WebApp.Services;
 
-// The player keeps two games: a free-play game and the day's puzzle. Mode says which one is
-// on screen, and every board-facing member below reads that one, so switching never
-// abandons the other. Only free-play games count toward the stats.
+// The player keeps three games: free play, the day's puzzle and Evil Mastermind. Mode says
+// which one is on screen, and every board-facing member below reads that one, so switching
+// never abandons the others. Only free-play games count toward the stats.
 public sealed class GameStateService(ISecretCodeGenerator secretCodeGenerator)
 {
     private Round? _freePlay;
     private Round? _daily;
+    private Round? _evil;
 
     public GameMode Mode { get; private set; } = GameMode.FreePlay;
 
     public bool HasGame => Current is not null;
 
     public bool HasFreePlayGame => _freePlay is not null;
+
+    public bool HasEvilGame => _evil is not null;
 
     // The date of the daily puzzle being kept, whether or not it is on screen.
     public DateOnly? DailyDate => _daily?.Date;
@@ -45,9 +48,14 @@ public sealed class GameStateService(ISecretCodeGenerator secretCodeGenerator)
     // the page shows the notes only when the player has the coach switched on.
     public IReadOnlyList<CoachNote> CoachNotes => Current?.CoachNotes ?? [];
 
-    private Round? Current => Mode is GameMode.Daily ? _daily : _freePlay;
+    private Round? Current => Mode switch
+    {
+        GameMode.Daily => _daily,
+        GameMode.Evil => _evil,
+        _ => _freePlay,
+    };
 
-    // Starts a new free-play game and shows it, from either mode.
+    // Starts a new free-play game and shows it, from any mode.
     public void StartNewGame()
     {
         // Walking away from a game in progress counts as a loss, so restarting
@@ -57,7 +65,7 @@ public sealed class GameStateService(ISecretCodeGenerator secretCodeGenerator)
             Stats = Stats.RecordLoss();
         }
 
-        _freePlay = new Round(new Game(secretCodeGenerator), IsDebugMode, date: null);
+        _freePlay = new Round(GameMode.FreePlay, new Game(secretCodeGenerator), IsDebugMode);
         Mode = GameMode.FreePlay;
     }
 
@@ -70,10 +78,24 @@ public sealed class GameStateService(ISecretCodeGenerator secretCodeGenerator)
     {
         if (_daily?.Date != today)
         {
-            _daily = new Round(new Game(DailyPuzzle.SecretCodeFor(today)), IsDebugMode, today);
+            _daily = new Round(GameMode.Daily, new Game(DailyPuzzle.SecretCodeFor(today)), IsDebugMode, today);
         }
 
         Mode = GameMode.Daily;
+    }
+
+    // Shows the Evil Mastermind game, as it was left, or a new one if there is none yet.
+    public void StartEvil()
+    {
+        _evil ??= NewEvilRound();
+        Mode = GameMode.Evil;
+    }
+
+    // Replaces the Evil Mastermind game with a new one and shows it.
+    public void StartNewEvilGame()
+    {
+        _evil = NewEvilRound();
+        Mode = GameMode.Evil;
     }
 
     public bool TrySubmitGuess(CodePeg[] guess, out Response response, out string? error)
@@ -127,19 +149,22 @@ public sealed class GameStateService(ISecretCodeGenerator secretCodeGenerator)
     public SavedDailyGame? CreateSavedDailyGame() =>
         _daily is { Date: { } date } ? new SavedDailyGame(date, GuessesOf(_daily)) : null;
 
+    public SavedEvilGame? CreateSavedEvilGame() =>
+        _evil is null ? null : new SavedEvilGame(GuessesOf(_evil));
+
     // A save comes from browser storage, which the player can edit, so it is
     // validated rather than trusted: every code must be present (JSON's
     // nullable checks stop at the properties, not the array items) and every
     // peg a real color (the enum would otherwise index past the board's color
     // counts), and replaying the guesses through Game rejects wrong lengths and
     // guesses after the end. A rejected save leaves the current game untouched.
-    // A restored game becomes the free-play game; the mode on screen is unchanged.
+    // A restored game is kept for its mode; the mode on screen is unchanged.
     public bool TryRestore(SavedGame savedGame)
     {
         if (!AreRealCodes(savedGame.Guesses.Prepend(savedGame.SecretCode))) return false;
-        if (Replay(savedGame.SecretCode, savedGame.Guesses) is not { } game) return false;
+        if (Replay(() => new Game(savedGame.SecretCode), savedGame.Guesses) is not { } game) return false;
 
-        _freePlay = new Round(game, savedGame.RevealSecretFromStart, date: null);
+        _freePlay = new Round(GameMode.FreePlay, game, savedGame.RevealSecretFromStart);
         return true;
     }
 
@@ -149,22 +174,37 @@ public sealed class GameStateService(ISecretCodeGenerator secretCodeGenerator)
     {
         if (savedDailyGame.Date != today) return false;
         if (!AreRealCodes(savedDailyGame.Guesses)) return false;
-        if (Replay(DailyPuzzle.SecretCodeFor(today), savedDailyGame.Guesses) is not { } game) return false;
+        if (Replay(() => new Game(DailyPuzzle.SecretCodeFor(today)), savedDailyGame.Guesses) is not { } game) return false;
 
-        _daily = new Round(game, IsDebugMode, today);
+        _daily = new Round(GameMode.Daily, game, IsDebugMode, today);
         return true;
     }
+
+    // Validated like the others; replaying the guesses against a new evil code maker gives
+    // back exactly the answers it gave the first time.
+    public bool TryRestoreEvil(SavedEvilGame savedEvilGame)
+    {
+        if (!AreRealCodes(savedEvilGame.Guesses)) return false;
+        if (Replay(() => new Game(new EvilCodeMaker()), savedEvilGame.Guesses) is not { } game) return false;
+
+        _evil = new Round(GameMode.Evil, game, revealSecretFromStart: false);
+        return true;
+    }
+
+    // The evil code maker has no code to reveal up front, so debug mode shows nothing.
+    private static Round NewEvilRound() =>
+        new(GameMode.Evil, new Game(new EvilCodeMaker()), revealSecretFromStart: false);
 
     private static CodePeg[][] GuessesOf(Round round) => [.. round.Game.History.Select(record => record.Guess.ToArray())];
 
     private static bool AreRealCodes(IEnumerable<CodePeg[]> codes) =>
         codes.All(code => code is not null && code.All(Enum.IsDefined));
 
-    private static Game? Replay(CodePeg[] secretCode, CodePeg[][] guesses)
+    private static Game? Replay(Func<Game> startGame, CodePeg[][] guesses)
     {
         try
         {
-            var game = new Game(secretCode);
+            var game = startGame();
             foreach (var guess in guesses)
             {
                 game.Guess(guess);
@@ -178,9 +218,9 @@ public sealed class GameStateService(ISecretCodeGenerator secretCodeGenerator)
         }
     }
 
-    // One of the player's two games, with what the page needs alongside it. Date is set for
-    // the daily puzzle and null for free play.
-    private sealed class Round(Game game, bool revealSecretFromStart, DateOnly? date)
+    // One of the player's games, with what the page needs alongside it. Date is set only for
+    // the daily puzzle.
+    private sealed class Round(GameMode kind, Game game, bool revealSecretFromStart, DateOnly? date = null)
     {
         public Game Game { get; } = game;
 
@@ -188,7 +228,7 @@ public sealed class GameStateService(ISecretCodeGenerator secretCodeGenerator)
 
         public DateOnly? Date { get; } = date;
 
-        public bool CountsTowardStats => Date is null && !RevealSecretFromStart;
+        public bool CountsTowardStats => kind is GameMode.FreePlay && !RevealSecretFromStart;
 
         public IReadOnlyList<CoachNote> CoachNotes { get; private set; } = Coach.Review(game.History);
 
