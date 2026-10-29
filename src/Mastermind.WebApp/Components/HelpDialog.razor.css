@@ -1,0 +1,234 @@
+/* The round "?" beside Coach, outlined like the mode switch. */
+.btn-help {
+    width: 1.625rem;
+    height: 1.625rem;
+    padding: 0;
+    border: 1px solid #5a1117;
+    border-radius: 50%;
+    background: #fff;
+    color: #5a1117;
+    font-size: 0.875rem;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.btn-help:hover {
+    background: #5a1117;
+    color: #fff;
+}
+
+.btn-help:focus-visible,
+.help button:focus-visible {
+    outline: 2px solid #b45309;
+    outline-offset: 2px;
+}
+
+/* === The dialog === */
+
+.help {
+    width: min(26rem, calc(100vw - 2rem));
+    max-height: calc(100vh - 2rem);
+    padding: 0;
+    border: none;
+    border-radius: 14px;
+    background: #fff;
+    color: #212529;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+    overflow-y: auto;
+}
+
+.help::backdrop {
+    background: rgba(31, 8, 10, 0.55);
+}
+
+/* Stays in view while the rest scrolls, so Close is always within reach. */
+.help-header {
+    position: sticky;
+    top: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.875rem 1rem 0.75rem 1.25rem;
+    border-bottom: 1px solid #eadfdf;
+    background: #fff;
+}
+
+.help-header h2 {
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #5a1117;
+}
+
+.help-close {
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: #5a1117;
+    font-size: 1.375rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.help-close:hover {
+    background: #f5eded;
+}
+
+.help section {
+    padding: 0.875rem 1.25rem;
+}
+
+.help section + section {
+    border-top: 1px solid #eadfdf;
+}
+
+.help h3 {
+    margin: 0 0 0.5rem;
+    font-size: 0.8125rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #5a1117;
+}
+
+.help h4 {
+    margin: 0.75rem 0 0.375rem;
+    font-size: 0.9375rem;
+    font-weight: 700;
+    color: #1f2937;
+}
+
+.help p,
+.help ul {
+    margin: 0 0 0.5rem;
+    font-size: 0.875rem;
+    line-height: 1.5;
+}
+
+.help section > :last-child {
+    margin-bottom: 0;
+}
+
+/* === The feedback example: a small slice of the board === */
+
+.help-example {
+    display: grid;
+    gap: 6px;
+    margin: 0 0 0.625rem;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: #5a1117;
+}
+
+.help-example-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.help-example-label {
+    width: 3rem;
+    color: rgba(255, 255, 255, 0.65);
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.help-example-code,
+.help-example-guess {
+    display: flex;
+    gap: 6px;
+}
+
+.help-peg {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.help-peg.peg--red { background: var(--peg-red); }
+.help-peg.peg--blue { background: var(--peg-blue); }
+.help-peg.peg--yellow { background: var(--peg-yellow); }
+.help-peg.peg--green { background: var(--peg-green); }
+.help-peg.peg--white { background: var(--peg-white); }
+.help-peg.peg--black { background: var(--peg-black); }
+
+.help-example-keys {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3px;
+    width: 23px;
+}
+
+.key-peg-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+.key-black {
+    background: var(--key-black);
+}
+
+.key-white {
+    background: var(--key-white);
+}
+
+.key-empty {
+    background: var(--key-empty);
+}
+
+.help-keys {
+    padding: 0;
+    list-style: none;
+}
+
+.help-keys li + li {
+    margin-top: 0.25rem;
+}
+
+/* On white, the white key peg needs an edge to be seen at all. */
+.help-keys .key-peg-dot {
+    margin-right: 0.25rem;
+    vertical-align: -1px;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+
+/* === Game modes: a switch like the one above the board === */
+
+.help-modes {
+    display: inline-flex;
+    border: 1px solid #5a1117;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.help-modes button {
+    padding: 0.3rem 0.75rem;
+    border: none;
+    background: #fff;
+    color: #5a1117;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.help-modes button + button {
+    border-left: 1px solid #5a1117;
+}
+
+.help-modes button[aria-pressed="true"] {
+    background: #5a1117;
+    color: #fff;
+}
+
+.help-modes button:focus-visible {
+    outline-offset: -2px;
+}

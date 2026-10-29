@@ -17,7 +17,10 @@
             }
             <button type="button" class="mode-evil" aria-pressed="@(IsEvil ? "true" : "false")" @onclick="OpenEvil">Evil</button>
         </div>
-        <label class="coach-toggle"><input type="checkbox" @bind="_coachOn" /> Coach</label>
+        <div class="options-end">
+            <HelpDialog Mode="GameState.Mode" />
+            <label class="coach-toggle"><input type="checkbox" @bind="_coachOn" /> Coach</label>
+        </div>
     </div>
 
     @if (IsShowingAnEarlierDaily)

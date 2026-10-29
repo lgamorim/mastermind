@@ -67,6 +67,13 @@
     outline-offset: -2px;
 }
 
+/* The help button and Coach, kept together at the row's right end. */
+.options-end {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
 .coach-toggle {
     display: flex;
     align-items: center;
@@ -320,48 +327,48 @@
 }
 
 .key-black {
-    background: #111;
+    background: var(--key-black);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
 }
 
 .key-white {
-    background: #f0f0f0;
+    background: var(--key-white);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
 .key-empty {
-    background: rgba(0, 0, 0, 0.35);
+    background: var(--key-empty);
 }
 
-/* === Peg colors (applied to .peg-hole and .palette-peg) === */
+/* === Peg colors (applied to .peg-hole and .palette-peg; the colors are in app.css) === */
 
 .peg--red {
-    background: radial-gradient(circle at 38% 32%, #f87171, #b91c1c);
+    background: var(--peg-red);
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
 .peg--blue {
-    background: radial-gradient(circle at 38% 32%, #60a5fa, #1d4ed8);
+    background: var(--peg-blue);
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
 .peg--yellow {
-    background: radial-gradient(circle at 38% 32%, #fde68a, #d97706);
+    background: var(--peg-yellow);
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 
 .peg--green {
-    background: radial-gradient(circle at 38% 32%, #4ade80, #15803d);
+    background: var(--peg-green);
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
 .peg--white {
-    background: radial-gradient(circle at 38% 32%, #ffffff, #cbd5e1);
+    background: var(--peg-white);
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 .peg--black {
-    background: radial-gradient(circle at 38% 32%, #64748b, #0f172a);
+    background: var(--peg-black);
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 

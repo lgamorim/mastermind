@@ -61,6 +61,21 @@ button {
     display: none !important;
 }
 
+/* === Peg colors ===
+   The board and the help dialog's example both draw pegs, and neither component's
+   scoped styles reach the other, so the colors live here, once. */
+:root {
+    --peg-red: radial-gradient(circle at 38% 32%, #f87171, #b91c1c);
+    --peg-blue: radial-gradient(circle at 38% 32%, #60a5fa, #1d4ed8);
+    --peg-yellow: radial-gradient(circle at 38% 32%, #fde68a, #d97706);
+    --peg-green: radial-gradient(circle at 38% 32%, #4ade80, #15803d);
+    --peg-white: radial-gradient(circle at 38% 32%, #ffffff, #cbd5e1);
+    --peg-black: radial-gradient(circle at 38% 32%, #64748b, #0f172a);
+    --key-black: #111;
+    --key-white: #f0f0f0;
+    --key-empty: rgba(0, 0, 0, 0.35);
+}
+
 /* === Blazor template === */
 
 .valid.modified:not([type=checkbox]) {

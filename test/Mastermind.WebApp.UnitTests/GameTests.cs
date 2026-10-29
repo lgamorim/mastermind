@@ -951,6 +951,26 @@ public class GameTests : BunitContext
     }
 
     [Fact]
+    public void Should_ExplainFreePlay_When_HowToPlayIsOpenedOnArrival()
+    {
+        var cut = Render<Game>();
+
+        cut.Find(".btn-help").Click();
+
+        cut.Find(".help-mode-title").TextContent.Should().Be("Free play");
+    }
+
+    [Fact]
+    public void Should_ExplainTheModeOnScreen_When_HowToPlayIsOpenedInAnotherMode()
+    {
+        var cut = RenderAndOpenEvilMode();
+
+        cut.Find(".btn-help").Click();
+
+        cut.Find(".help-mode-title").TextContent.Should().Be("Evil Mastermind");
+    }
+
+    [Fact]
     public void Should_ShowTheEvilBoardAndHideTheStats_When_EvilModeIsOpened()
     {
         var cut = RenderAndOpenEvilMode();

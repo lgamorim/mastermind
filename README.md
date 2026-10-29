@@ -47,6 +47,8 @@ Then open the printed localhost URL in your browser.
 4. The Code Maker responds with key pegs (black and white dots) on the right side of the row. Use that feedback to refine your next guess.
 5. Keep guessing until you crack the code or exhaust all 10 attempts. If you run out, the secret code is revealed.
 
+Click **?** beside **Coach** for a short guide in the game itself: the rules with a worked example of the feedback, the mode on screen (any other mode is a click away), and the coach.
+
 Your game is saved in the browser after every guess, so reloading the page or coming back later picks it up where you left off. Pegs placed but not yet submitted are not saved. **New Game** replaces the saved game.
 
 Below the board, **Statistics** tracks your games in the same browser: games played, win rate, your current and best winning streaks, and a chart of how many guesses each win took. Starting a new game while one with guesses is still in progress counts as a loss. Games played in debug mode are not counted. Use **Hide statistics** under the board to collapse the panel, and **Show statistics** to bring it back.

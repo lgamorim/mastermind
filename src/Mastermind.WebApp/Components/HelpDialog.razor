@@ -1,0 +1,160 @@
+@inject IJSRuntime JS
+
+<button type="button" class="btn-help" aria-label="How to play" title="How to play" @onclick="OpenAsync">?</button>
+
+@* A native modal dialog: the browser keeps focus inside it, makes the page behind inert,
+   closes it on Esc and returns focus to the help button, none of which the page must
+   rebuild. Opening it takes script; closing it does not. *@
+<dialog class="help" aria-labelledby="help-title" @ref="_dialog">
+    <form method="dialog" class="help-header">
+        <h2 id="help-title">How to play</h2>
+        <button class="help-close" aria-label="Close" title="Close">×</button>
+    </form>
+
+    <section class="help-rules">
+        <h3>The rules</h3>
+        <p>
+            Crack the Code Maker's secret code: four pegs in a row, each one of six colors.
+            Colors can repeat. You have 10 guesses.
+        </p>
+        <p>
+            Drag a color onto a hole in the lit row, or click a color and then the holes to
+            fill them. Click a filled hole with no color selected to clear it, and
+            <strong>Submit</strong> once all four holes are filled.
+        </p>
+        <p>Each guess earns key pegs:</p>
+
+        <div class="help-example">
+            <div class="help-example-row">
+                <span class="help-example-label">Code</span>
+                <span class="help-example-code" role="img" aria-label="@string.Join(", ", ExampleCode)">
+                    @foreach (var peg in ExampleCode)
+                    {
+                        <span class="help-peg @PegClass(peg)" title="@peg"></span>
+                    }
+                </span>
+            </div>
+            <div class="help-example-row">
+                <span class="help-example-label">Guess</span>
+                <span class="help-example-guess" role="img" aria-label="@string.Join(", ", ExampleGuess)">
+                    @foreach (var peg in ExampleGuess)
+                    {
+                        <span class="help-peg @PegClass(peg)" title="@peg"></span>
+                    }
+                </span>
+                <span class="help-example-keys" role="img" aria-label="@KeyPegsLabel()">
+                    @foreach (var dot in KeyPegDots())
+                    {
+                        <span class="key-peg-dot @dot"></span>
+                    }
+                </span>
+            </div>
+        </div>
+
+        <ul class="help-keys">
+            <li><span class="key-peg-dot key-black"></span> A <strong>black</strong> key peg: right color, right place. Here, the Red.</li>
+            <li><span class="key-peg-dot key-white"></span> A <strong>white</strong> key peg: right color, wrong place. Here, the Green and the Blue.</li>
+            <li>The Yellow isn't in the code, so it earns nothing.</li>
+        </ul>
+        <p>
+            Key pegs don't say which of your pegs they belong to: that's for you to work out.
+            Four black key pegs crack the code.
+        </p>
+    </section>
+
+    <section class="help-mode">
+        <h3>Game modes</h3>
+        <div class="help-modes" role="group" aria-label="Game mode">
+            <button type="button" class="help-mode-free" aria-pressed="@Pressed(GameMode.FreePlay)" @onclick="() => _section = GameMode.FreePlay">Free play</button>
+            <button type="button" class="help-mode-daily" aria-pressed="@Pressed(GameMode.Daily)" @onclick="() => _section = GameMode.Daily">Daily</button>
+            <button type="button" class="help-mode-evil" aria-pressed="@Pressed(GameMode.Evil)" @onclick="() => _section = GameMode.Evil">Evil</button>
+        </div>
+
+        @switch (_section)
+        {
+            case GameMode.Daily:
+                <h4 class="help-mode-title">Daily puzzle</h4>
+                <p>
+                    One puzzle a day: the same code for everyone, with a new puzzle at your local
+                    midnight. You get one go at each day's puzzle.
+                </p>
+                <p>
+                    When it ends, <strong>Share result</strong> copies a summary of your feedback,
+                    without the code, ready to paste into a chat. Daily games don't count toward
+                    the statistics.
+                </p>
+                break;
+            case GameMode.Evil:
+                <h4 class="help-mode-title">Evil Mastermind</h4>
+                <p>
+                    This Code Maker never commits to a code. After each guess it answers in
+                    whichever way keeps the most codes possible, so you win only by narrowing them
+                    down to one and then guessing it.
+                </p>
+                <p>
+                    Its answers never contradict each other, and if it gets away it shows a code
+                    that fits them all. <strong>Try again</strong> starts a new evil game. Evil
+                    games don't count toward the statistics.
+                </p>
+                break;
+            default:
+                <h4 class="help-mode-title">Free play</h4>
+                <p>
+                    A new secret code every game. Your game is saved in this browser after each
+                    guess, so you can leave and pick it up later.
+                </p>
+                <p>
+                    Wins, losses and streaks go into the statistics below the board.
+                    <strong>New Game</strong> starts over, and starting over in a game you've
+                    already guessed in counts as a loss.
+                </p>
+                break;
+        }
+    </section>
+
+    <section class="help-coach">
+        <h3>Coach</h3>
+        <p>
+            Tick <strong>Coach</strong> for feedback on your reasoning. Under the board it says how
+            many of the 1,296 possible codes still fit all the feedback so far.
+        </p>
+        <p>
+            If a guess couldn't have been the code, given earlier feedback, its row number turns
+            amber and the coach names the guess it contradicts. It never says which codes are
+            left, and coached games still count toward the statistics.
+        </p>
+    </section>
+</dialog>
+
+@code {
+    // Scored by the game itself, so the picture always matches the rules: one black for
+    // the Red, two whites for the Green and the Blue, nothing for the Yellow.
+    private static readonly CodePeg[] ExampleCode = [CodePeg.Red, CodePeg.Blue, CodePeg.Green, CodePeg.Green];
+    private static readonly CodePeg[] ExampleGuess = [CodePeg.Red, CodePeg.Green, CodePeg.Yellow, CodePeg.Blue];
+    private static readonly Response ExampleResponse = Response.Score(ExampleCode, ExampleGuess);
+
+    private ElementReference _dialog;
+    private GameMode _section;
+
+    // The mode on screen: the dialog opens on its section.
+    [Parameter, EditorRequired]
+    public GameMode Mode { get; set; }
+
+    private async Task OpenAsync()
+    {
+        _section = Mode;
+        await JS.InvokeVoidAsync("mastermindDialog.showModal", _dialog);
+    }
+
+    private string Pressed(GameMode mode) => _section == mode ? "true" : "false";
+
+    private static string PegClass(CodePeg peg) => $"peg--{peg.ToString().ToLowerInvariant()}";
+
+    private static IEnumerable<string> KeyPegDots() =>
+        Enumerable.Repeat("key-black", ExampleResponse.BlackKeyPegs)
+            .Concat(Enumerable.Repeat("key-white", ExampleResponse.WhiteKeyPegs))
+            .Concat(Enumerable.Repeat("key-empty", ExampleCode.Length - ExampleResponse.BlackKeyPegs - ExampleResponse.WhiteKeyPegs));
+
+    private static string KeyPegsLabel() =>
+        $"{ExampleResponse.BlackKeyPegs} black and {ExampleResponse.WhiteKeyPegs} white key pegs";
+}
